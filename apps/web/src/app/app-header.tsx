@@ -60,12 +60,12 @@ export function AppHeader() {
 
   return (
     <header className="sticky top-0 z-10 border-b border-[#d5ddd1] bg-[#f5f7f2]/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:justify-between md:px-8">
-        <Link className="text-xl font-extrabold text-[#172018]" href="/">
+      <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3 sm:px-5 md:flex-row md:items-center md:justify-between md:px-8 md:py-4">
+        <Link className="min-w-0 text-xl font-extrabold text-[#172018]" href="/">
           {APP_NAME}
         </Link>
 
-        <nav className="flex flex-wrap items-center gap-2">
+        <nav className="flex min-w-0 flex-wrap items-center gap-2">
           {user ? (
             <Link
               className="rounded-lg px-3 py-2 text-sm font-bold text-[#3f4b40] hover:bg-white"
@@ -89,7 +89,7 @@ export function AppHeader() {
               >
                 Einstellungen
               </Link>
-              <span className="rounded-full bg-[#eef3eb] px-3 py-1 text-sm font-bold text-[#2f6f4e]">
+              <span className="max-w-full truncate rounded-full bg-[#eef3eb] px-3 py-1 text-sm font-bold text-[#2f6f4e] sm:max-w-52">
                 {user.displayName}
               </span>
               <button

@@ -92,10 +92,10 @@ export function RankingBoard({ refreshKey, tournamentId }: RankingBoardProps) {
 
   return (
     <section
-      className="overflow-hidden rounded-lg border border-[#d5ddd1] bg-white"
+      className="min-w-0 overflow-hidden rounded-lg border border-[#d5ddd1] bg-white"
       aria-label="Ranking Board"
     >
-      <div className="grid gap-5 border-b border-[#e2e8df] bg-[#fbfcfa] p-6 lg:grid-cols-[1fr_auto] lg:items-start">
+      <div className="grid min-w-0 gap-5 border-b border-[#e2e8df] bg-[#fbfcfa] p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <div className="grid gap-1.5">
           <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">Ranking</p>
           <h2 className="m-0 text-2xl font-extrabold">Scoreboard</h2>
@@ -105,7 +105,7 @@ export function RankingBoard({ refreshKey, tournamentId }: RankingBoardProps) {
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-2 rounded-lg bg-[#eef3eb] p-1">
+        <div className="grid w-full grid-cols-3 gap-2 rounded-lg bg-[#eef3eb] p-1 sm:w-auto">
           {modes.map((item) => (
             <button
               className={`min-h-10 rounded-md px-3 py-2 text-sm font-extrabold ${
@@ -124,12 +124,12 @@ export function RankingBoard({ refreshKey, tournamentId }: RankingBoardProps) {
       </div>
 
       {leader ? (
-        <div className="grid gap-4 border-b border-[#e2e8df] p-6 lg:grid-cols-[1fr_2fr]">
-          <div className="rounded-lg bg-[#265c42] p-5 text-white">
+        <div className="grid min-w-0 gap-4 border-b border-[#e2e8df] p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_2fr]">
+          <div className="min-w-0 rounded-lg bg-[#265c42] p-4 text-white sm:p-5">
             <p className="m-0 text-xs font-bold uppercase text-[#c8ead8]">
               Führung
             </p>
-            <h3 className="m-0 mt-3 text-3xl font-extrabold">
+            <h3 className="m-0 mt-3 break-words text-2xl font-extrabold sm:text-3xl">
               {leader.displayName}
             </h3>
             <p className="m-0 mt-2 text-[#dcece3]">
@@ -145,7 +145,7 @@ export function RankingBoard({ refreshKey, tournamentId }: RankingBoardProps) {
         </div>
       ) : null}
 
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {isLoading ? (
           <p className="m-0 text-[#667064]">Ranking wird geladen...</p>
         ) : null}
@@ -157,7 +157,44 @@ export function RankingBoard({ refreshKey, tournamentId }: RankingBoardProps) {
         ) : null}
 
         {!isLoading && !error && rows.length > 0 ? (
-          <div className="overflow-x-auto">
+          <div className="grid gap-3 md:hidden">
+            {rows.map((row, index) => (
+              <article
+                className={`grid gap-3 rounded-lg border border-[#e2e8df] p-3 ${
+                  row.isQualified ? "bg-[#fbfcfa]" : "bg-[#f3f5f1]"
+                }`}
+                key={row.participantId}
+              >
+                <div className="grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#2f6f4e] font-extrabold text-white">
+                    {row.displayName.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="min-w-0">
+                    <strong className="block truncate">{row.displayName}</strong>
+                    <small className="block text-[#667064]">
+                      {row.isQualified
+                        ? "Qualifiziert"
+                        : "Noch nicht qualifiziert"}
+                    </small>
+                  </span>
+                  <strong className="text-[#172018]">#{index + 1}</strong>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <MobileStat label="Quote" value={formatPercent(row.winRate)} />
+                  <MobileStat label="Spiele" value={row.gamesPlayed.toString()} />
+                  <MobileStat label="Bilanz" value={`${row.wins}:${row.losses}`} />
+                  <MobileStat
+                    label="Diff."
+                    value={formatDiff(row.pointDifference)}
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : null}
+
+        {!isLoading && !error && rows.length > 0 ? (
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[760px] border-separate border-spacing-y-2 text-left">
               <thead>
                 <tr className="text-xs font-bold uppercase text-[#667064]">
@@ -222,9 +259,20 @@ export function RankingBoard({ refreshKey, tournamentId }: RankingBoardProps) {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-4">
+    <div className="min-w-0 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-3 sm:p-4">
       <p className="m-0 text-xs font-bold uppercase text-[#667064]">{label}</p>
-      <p className="m-0 mt-2 text-3xl font-extrabold text-[#172018]">{value}</p>
+      <p className="m-0 mt-2 text-2xl font-extrabold text-[#172018] sm:text-3xl">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function MobileStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-white px-3 py-2">
+      <p className="m-0 text-[11px] font-bold uppercase text-[#667064]">{label}</p>
+      <p className="m-0 mt-1 font-extrabold text-[#172018]">{value}</p>
     </div>
   );
 }

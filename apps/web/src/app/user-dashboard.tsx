@@ -78,14 +78,14 @@ export function UserDashboard() {
 
   return (
     <div className="grid gap-6">
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 md:gap-4 xl:grid-cols-4">
         <StatCard label="Turniere" value={stats.joinedTournamentCount.toString()} />
         <StatCard label="Eigene Turniere" value={stats.ownedTournamentCount.toString()} />
         <StatCard label="Matches" value={stats.gamesPlayed.toString()} />
         <StatCard label="Siegquote" value={formatPercent(stats.winRate)} />
       </section>
 
-      <section className="rounded-lg border border-[#d5ddd1] bg-white p-6">
+      <section className="rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">
@@ -94,7 +94,7 @@ export function UserDashboard() {
             <h2 className="m-0 mt-1 text-2xl font-extrabold">Letzte Turniere</h2>
           </div>
           <Link
-            className="w-fit rounded-lg bg-[#265c42] px-4 py-3 font-extrabold text-white"
+            className="w-full rounded-lg bg-[#265c42] px-4 py-3 text-center font-extrabold text-white sm:w-fit"
             href="/tournaments"
           >
             Turniere öffnen
@@ -129,9 +129,11 @@ export function UserDashboard() {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-[#d5ddd1] bg-white p-6">
+    <div className="min-w-0 rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6">
       <p className="m-0 text-xs font-bold uppercase text-[#667064]">{label}</p>
-      <p className="m-0 mt-2 text-4xl font-extrabold text-[#172018]">{value}</p>
+      <p className="m-0 mt-2 text-3xl font-extrabold text-[#172018] sm:text-4xl">
+        {value}
+      </p>
     </div>
   );
 }

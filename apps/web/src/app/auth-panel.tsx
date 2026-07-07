@@ -119,14 +119,16 @@ export function AuthPanel({ onAuthChange }: AuthPanelProps) {
   if (user) {
     return (
       <section
-        className="grid gap-4 rounded-lg border border-[#d5ddd1] bg-white p-6"
+        className="grid min-w-0 gap-4 rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6"
         aria-label="Aktuelle Sitzung"
       >
         <div className="grid gap-1.5">
           <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">Session</p>
-          <h2 className="m-0 text-xl font-bold">{user.displayName}</h2>
+          <h2 className="m-0 min-w-0 break-words text-xl font-bold">
+            {user.displayName}
+          </h2>
         </div>
-        <p className="m-0 text-[#667064]">{user.email}</p>
+        <p className="m-0 min-w-0 break-words text-[#667064]">{user.email}</p>
         <button
           className="min-h-10 cursor-pointer rounded-lg border border-[#ccd7c7] bg-[#fbfcfa] px-3 py-2.5 font-extrabold text-[#172018]"
           type="button"
@@ -140,7 +142,7 @@ export function AuthPanel({ onAuthChange }: AuthPanelProps) {
 
   return (
     <section
-      className="grid gap-4 rounded-lg border border-[#d5ddd1] bg-white p-6"
+      className="grid min-w-0 gap-4 rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6"
       aria-label="Authentifizierung"
     >
       <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Auth Modus">

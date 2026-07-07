@@ -94,16 +94,18 @@ export function TournamentDetailPage({ tournamentId }: TournamentDetailPageProps
 
   return (
     <section className="grid gap-6">
-      <div className="rounded-lg border border-[#d5ddd1] bg-white p-6">
+      <div className="min-w-0 rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6">
         <Link className="text-sm font-bold text-[#2f6f4e]" href="/tournaments">
           Zurück zur Übersicht
         </Link>
         <p className="m-0 mt-5 text-xs font-bold uppercase text-[#2f6f4e]">
           Aktives Turnier
         </p>
-        <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="m-0 text-4xl font-extrabold">{tournament.name}</h1>
+        <div className="mt-2 flex min-w-0 flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div className="min-w-0">
+            <h1 className="m-0 break-words text-3xl font-extrabold sm:text-4xl">
+              {tournament.name}
+            </h1>
             <p className="m-0 mt-2 text-[#667064]">
               {tournament.participants.length} Teilnehmer · {tournament.matchCount}{" "}
               Matches
@@ -115,8 +117,8 @@ export function TournamentDetailPage({ tournamentId }: TournamentDetailPageProps
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
-        <div className="grid gap-6">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:gap-6">
+        <div className="grid min-w-0 gap-5 xl:gap-6">
           <MatchForm
             participants={tournament.participants}
             tournamentId={tournament.id}
@@ -140,7 +142,7 @@ export function TournamentDetailPage({ tournamentId }: TournamentDetailPageProps
           />
         </div>
 
-        <aside className="rounded-lg border border-[#d5ddd1] bg-white p-6">
+        <aside className="min-w-0 rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6">
           <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">
             Teilnehmer
           </p>
@@ -148,14 +150,16 @@ export function TournamentDetailPage({ tournamentId }: TournamentDetailPageProps
           <ul className="mt-4 grid list-none gap-2.5 p-0">
             {tournament.participants.map((participant) => (
               <li
-                className="grid grid-cols-[40px_1fr] items-center gap-3 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-3"
+                className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-3"
                 key={participant.id}
               >
                 <span className="grid h-10 w-10 place-items-center rounded-full bg-[#2f6f4e] font-extrabold text-white">
                   {participant.user.displayName.slice(0, 1).toUpperCase()}
                 </span>
-                <span>
-                  <strong className="block">{participant.user.displayName}</strong>
+                <span className="min-w-0">
+                  <strong className="block truncate">
+                    {participant.user.displayName}
+                  </strong>
                   <small className="block text-[#667064]">{participant.role}</small>
                 </span>
               </li>

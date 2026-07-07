@@ -144,7 +144,7 @@ export function SettingsPanel() {
 
   if (isLoading) {
     return (
-      <section className="rounded-lg border border-[#d5ddd1] bg-white p-6">
+      <section className="rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6">
         <p className="m-0 text-[#667064]">Account wird geladen...</p>
       </section>
     );
@@ -153,12 +153,14 @@ export function SettingsPanel() {
   return (
     <div className="grid gap-5">
       <form
-        className="grid gap-5 rounded-lg border border-[#d5ddd1] bg-white p-6"
+        className="grid min-w-0 gap-5 rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6"
         onSubmit={handleSubmit}
       >
         <div className="grid gap-1.5">
           <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">Profil</p>
-          <h2 className="m-0 text-2xl font-extrabold">{user?.email}</h2>
+          <h2 className="m-0 min-w-0 break-words text-xl font-extrabold sm:text-2xl">
+            {user?.email}
+          </h2>
         </div>
 
         <label className="grid gap-2 font-bold">
@@ -173,7 +175,7 @@ export function SettingsPanel() {
         </label>
 
         <button
-          className="min-h-11 w-fit cursor-pointer rounded-lg bg-[#265c42] px-5 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65"
+          className="min-h-11 w-full cursor-pointer rounded-lg bg-[#265c42] px-5 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65 sm:w-fit"
           disabled={isSaving}
           type="submit"
         >
@@ -187,7 +189,7 @@ export function SettingsPanel() {
       </form>
 
       <form
-        className="grid gap-5 rounded-lg border border-[#d5ddd1] bg-white p-6"
+        className="grid min-w-0 gap-5 rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6"
         onSubmit={handlePasswordSubmit}
       >
         <div className="grid gap-1.5">
@@ -238,7 +240,7 @@ export function SettingsPanel() {
         </label>
 
         <button
-          className="min-h-11 w-fit cursor-pointer rounded-lg bg-[#265c42] px-5 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65"
+          className="min-h-11 w-full cursor-pointer rounded-lg bg-[#265c42] px-5 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65 sm:w-fit"
           disabled={isChangingPassword}
           type="submit"
         >

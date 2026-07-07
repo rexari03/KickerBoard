@@ -135,12 +135,12 @@ export function MatchForm({
 
   return (
     <section
-      className="rounded-lg border border-[#d5ddd1] bg-white p-6"
+      className="min-w-0 rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6"
       aria-label="Match erfassen"
     >
       <form className="grid gap-6" onSubmit={handleSubmit}>
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div className="grid gap-1.5">
+        <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="grid min-w-0 gap-1.5">
             <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">Match</p>
             <h2 className="m-0 text-2xl font-extrabold">Ergebnis erfassen</h2>
             <p className="m-0 max-w-2xl text-sm leading-6 text-[#667064]">
@@ -149,7 +149,7 @@ export function MatchForm({
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 rounded-lg bg-[#eef3eb] p-1">
+          <div className="grid w-full grid-cols-2 gap-2 rounded-lg bg-[#eef3eb] p-1 sm:w-auto">
             <button
               className={`min-h-10 rounded-md px-4 py-2 font-extrabold ${
                 form.mode === "ONE_VS_ONE"
@@ -175,7 +175,7 @@ export function MatchForm({
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1fr_auto_1fr] lg:items-stretch">
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:items-stretch">
           <TeamCard
             label="Team A"
             side="A"
@@ -208,7 +208,7 @@ export function MatchForm({
         </div>
 
         <div className="flex flex-col gap-3 border-t border-[#e2e8df] pt-5 md:flex-row md:items-center md:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="m-0 text-sm text-[#667064]">
               {participants.length} Turnierteilnehmer verfügbar
             </p>
@@ -217,7 +217,7 @@ export function MatchForm({
           </div>
 
           <button
-            className="min-h-11 cursor-pointer rounded-lg bg-[#265c42] px-5 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65"
+            className="min-h-11 w-full cursor-pointer rounded-lg bg-[#265c42] px-5 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65 md:w-auto"
             disabled={isSubmitting}
             type="submit"
           >
@@ -251,7 +251,7 @@ function TeamCard({
   onPlayerChange
 }: TeamCardProps) {
   return (
-    <fieldset className="grid gap-4 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-4">
+    <fieldset className="grid min-w-0 gap-4 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-3 sm:p-4">
       <legend className="px-1 font-extrabold text-[#172018]">{label}</legend>
 
       <label className="grid gap-2 font-bold">

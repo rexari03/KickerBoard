@@ -171,9 +171,9 @@ export function TournamentDashboard() {
 
   return (
     <div className="grid gap-6">
-      <section className="grid gap-6 lg:grid-cols-[380px_1fr]">
+      <section className="grid gap-5 lg:grid-cols-[minmax(280px,380px)_minmax(0,1fr)] lg:gap-6">
         <form
-          className="grid gap-[18px] rounded-lg border border-[#d5ddd1] bg-white p-6"
+          className="grid min-w-0 gap-[18px] rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6"
           onSubmit={handleCreateTournament}
         >
           <div className="grid gap-1.5">
@@ -229,7 +229,7 @@ export function TournamentDashboard() {
           </button>
         </form>
 
-        <section className="rounded-lg border border-[#d5ddd1] bg-white p-6">
+        <section className="min-w-0 rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6">
           <div className="grid gap-1.5">
             <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">
               Übersicht
@@ -248,7 +248,7 @@ export function TournamentDashboard() {
           <div className="mt-4 grid gap-3">
             {tournaments.map((tournament) => (
               <article
-                className={`grid gap-3 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-4 transition ${
+                className={`grid min-w-0 gap-3 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-3 transition sm:p-4 ${
                   tournament.isParticipant
                     ? "cursor-pointer hover:border-[#b9cbb1] hover:bg-white hover:shadow-sm focus:outline-none focus:ring-3 focus:ring-[#c8ead8]"
                     : ""
@@ -271,9 +271,9 @@ export function TournamentDashboard() {
                   }
                 }}
               >
-                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <h3 className="m-0 text-lg font-extrabold">
+                <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="min-w-0">
+                    <h3 className="m-0 break-words text-lg font-extrabold">
                       {tournament.name}
                     </h3>
                     <p className="m-0 mt-1 text-sm text-[#667064]">
@@ -283,14 +283,14 @@ export function TournamentDashboard() {
                     </p>
                   </div>
 
-                  <span className="rounded-full bg-[#eef3eb] px-3 py-1 text-xs font-bold uppercase text-[#2f6f4e]">
+                  <span className="w-fit rounded-full bg-[#eef3eb] px-3 py-1 text-xs font-bold uppercase text-[#2f6f4e]">
                     {tournament.isParticipant ? "Beigetreten" : "Offen"}
                   </span>
                 </div>
 
                 {!tournament.isParticipant ? (
                   <div
-                    className="grid gap-2 md:grid-cols-[1fr_auto]"
+                    className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"
                     onClick={(event) => event.stopPropagation()}
                   >
                     <input

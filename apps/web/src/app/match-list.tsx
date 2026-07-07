@@ -125,7 +125,7 @@ export function MatchList({
   }
 
   return (
-    <section className="rounded-lg border border-[#d5ddd1] bg-white p-6">
+    <section className="min-w-0 rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6">
       <div className="grid gap-1.5">
         <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">Matches</p>
         <h2 className="m-0 text-2xl font-extrabold">Ergebnisse</h2>
@@ -153,10 +153,10 @@ export function MatchList({
 
             return (
               <article
-                className="grid gap-4 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-4 lg:grid-cols-[1fr_auto] lg:items-center"
+                className="grid min-w-0 gap-4 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
                 key={match.id}
               >
-                <div className="grid gap-3">
+                <div className="grid min-w-0 gap-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
@@ -175,7 +175,7 @@ export function MatchList({
                     </span>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
+                  <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
                     <TeamSummary team={teamA} />
                     <strong className="text-center text-[#667064]">vs</strong>
                     <TeamSummary team={teamB} />
@@ -184,7 +184,7 @@ export function MatchList({
 
                 {canConfirm ? (
                   <button
-                    className="min-h-11 cursor-pointer rounded-lg bg-[#265c42] px-4 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65"
+                    className="min-h-11 w-full cursor-pointer rounded-lg bg-[#265c42] px-4 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65 lg:w-auto"
                     disabled={confirmingMatchId === match.id}
                     type="button"
                     onClick={() => void confirmMatch(match.id)}
@@ -209,15 +209,15 @@ function TeamSummary({ team }: { team?: MatchTeam }) {
   }
 
   return (
-    <div className="rounded-lg border border-[#e2e8df] bg-white p-3">
+    <div className="min-w-0 rounded-lg border border-[#e2e8df] bg-white p-3">
       <div className="flex items-center justify-between gap-3">
-        <span className="font-extrabold">
+        <span className="min-w-0 font-extrabold">
           Team {team.side}
           {team.isWinner ? " · Sieger" : ""}
         </span>
         <span className="text-2xl font-extrabold">{team.score}</span>
       </div>
-      <p className="m-0 mt-2 text-sm text-[#667064]">
+      <p className="m-0 mt-2 break-words text-sm text-[#667064]">
         {team.participants
           .map((participant) => participant.tournamentParticipant.user.displayName)
           .join(", ")}
