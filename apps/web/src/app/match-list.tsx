@@ -71,6 +71,7 @@ export function MatchList({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
 
   const apiUrl = useMemo(
     () => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000",
@@ -192,6 +193,193 @@ export function MatchList({
     }
   }
 
+  const latestMatch = matches[0] ?? null;
+  const pinnedMatchIds = new Set(
+    matches
+      .filter(
+        (match, index) =>
+          index === 0 ||
+          canUserConfirmMatch(match, currentUserId) ||
+          canUserRejectMatch(match, currentUserId) ||
+          editingRejectMatchId === match.id
+      )
+      .map((match) => match.id)
+  );
+  const visibleMatches = matches.filter((match) => pinnedMatchIds.has(match.id));
+  const historyMatches = matches.filter((match) => !pinnedMatchIds.has(match.id));
+
+  function renderMatchCard(match: MatchItem, label?: string) {
+    const teamA = match.teams.find((team) => team.side === "A");
+    const teamB = match.teams.find((team) => team.side === "B");
+    const canConfirm = canUserConfirmMatch(match, currentUserId);
+    const canReject = canUserRejectMatch(match, currentUserId);
+    const proposalForm = counterProposalForms[match.id] ?? {
+      scoreA: String(teamA?.score ?? ""),
+      scoreB: String(teamB?.score ?? ""),
+      reason: ""
+    };
+
+    return (
+      <article
+        className="grid min-w-0 gap-4 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
+        key={match.id}
+      >
+        <div className="grid min-w-0 gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {label ? (
+              <span className="rounded-full bg-[#eef3eb] px-3 py-1 text-xs font-bold uppercase text-[#2f6f4e]">
+                {label}
+              </span>
+            ) : null}
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                match.status === "COMPLETED"
+                  ? "bg-[#e0f2e8] text-[#2f6f4e]"
+                  : match.status === "PENDING_COUNTER_CONFIRMATION"
+                    ? "bg-[#e8edf8] text-[#2c4b83]"
+                    : "bg-[#fff4d6] text-[#7a5b00]"
+              }`}
+            >
+              {getStatusLabel(match.status)}
+            </span>
+            <span className="text-sm text-[#667064]">
+              {formatDate(match.playedAt)} · eingereicht von{" "}
+              {match.createdBy.displayName}
+            </span>
+          </div>
+
+          <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
+            <TeamSummary team={teamA} />
+            <strong className="text-center text-[#667064]">vs</strong>
+            <TeamSummary team={teamB} />
+          </div>
+
+          {match.status === "PENDING_COUNTER_CONFIRMATION" ? (
+            <p className="m-0 text-sm leading-6 text-[#667064]">
+              Gegenvorschlag von {match.counterProposedBy?.displayName ?? "Gegner"}
+              {match.counterReason ? `: ${match.counterReason}` : "."}
+            </p>
+          ) : null}
+
+          {editingRejectMatchId === match.id ? (
+            <div className="grid gap-3 rounded-lg border border-[#d5ddd1] bg-white p-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-bold">
+                  <span>Team A Punkte</span>
+                  <input
+                    className="w-full rounded-lg border border-[#ccd7c7] bg-white px-3 py-2.5 text-[#172018] outline-[#c8ead8] focus:border-[#2f6f4e] focus:outline-3"
+                    inputMode="numeric"
+                    min={0}
+                    type="number"
+                    value={proposalForm.scoreA}
+                    onChange={(event) =>
+                      setCounterProposalForms((current) => ({
+                        ...current,
+                        [match.id]: {
+                          ...proposalForm,
+                          scoreA: event.target.value
+                        }
+                      }))
+                    }
+                  />
+                </label>
+                <label className="grid gap-2 text-sm font-bold">
+                  <span>Team B Punkte</span>
+                  <input
+                    className="w-full rounded-lg border border-[#ccd7c7] bg-white px-3 py-2.5 text-[#172018] outline-[#c8ead8] focus:border-[#2f6f4e] focus:outline-3"
+                    inputMode="numeric"
+                    min={0}
+                    type="number"
+                    value={proposalForm.scoreB}
+                    onChange={(event) =>
+                      setCounterProposalForms((current) => ({
+                        ...current,
+                        [match.id]: {
+                          ...proposalForm,
+                          scoreB: event.target.value
+                        }
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+              <label className="grid gap-2 text-sm font-bold">
+                <span>Hinweis</span>
+                <input
+                  className="w-full rounded-lg border border-[#ccd7c7] bg-white px-3 py-2.5 text-[#172018] outline-[#c8ead8] focus:border-[#2f6f4e] focus:outline-3"
+                  value={proposalForm.reason}
+                  onChange={(event) =>
+                    setCounterProposalForms((current) => ({
+                      ...current,
+                      [match.id]: {
+                        ...proposalForm,
+                        reason: event.target.value
+                      }
+                    }))
+                  }
+                  placeholder="Optional"
+                />
+              </label>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  className="min-h-10 rounded-lg border border-[#ccd7c7] px-4 py-2 font-extrabold text-[#172018]"
+                  type="button"
+                  onClick={() => setEditingRejectMatchId(null)}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  className="min-h-10 rounded-lg bg-[#265c42] px-4 py-2 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65"
+                  disabled={rejectingMatchId === match.id}
+                  type="button"
+                  onClick={() => void rejectMatch(match.id)}
+                >
+                  {rejectingMatchId === match.id
+                    ? "Sendet..."
+                    : "Gegenvorschlag senden"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {canConfirm || canReject ? (
+          <div className="grid gap-2 lg:w-auto">
+            {canConfirm ? (
+              <button
+                className="min-h-11 w-full cursor-pointer rounded-lg bg-[#265c42] px-4 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65 lg:w-auto"
+                disabled={confirmingMatchId === match.id}
+                type="button"
+                onClick={() => void confirmMatch(match.id)}
+              >
+                {confirmingMatchId === match.id
+                  ? "Bestätigt..."
+                  : match.status === "PENDING_COUNTER_CONFIRMATION"
+                    ? "Gegenvorschlag bestätigen"
+                    : "Ergebnis bestätigen"}
+              </button>
+            ) : null}
+            {canReject ? (
+              <button
+                className="min-h-11 w-full cursor-pointer rounded-lg border border-[#ccd7c7] bg-white px-4 py-3 font-extrabold text-[#172018] lg:w-auto"
+                type="button"
+                onClick={() => {
+                  setCounterProposalForms((current) => ({
+                    ...current,
+                    [match.id]: proposalForm
+                  }));
+                  setEditingRejectMatchId(match.id);
+                }}
+              >
+                Ablehnen und korrigieren
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </article>
+    );
+  }
+
   return (
     <section className="min-w-0 rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6">
       <div className="grid gap-1.5">
@@ -214,172 +402,35 @@ export function MatchList({
 
       {!isLoading && matches.length > 0 ? (
         <div className="mt-5 grid gap-3">
-          {matches.map((match) => {
-            const teamA = match.teams.find((team) => team.side === "A");
-            const teamB = match.teams.find((team) => team.side === "B");
-            const canConfirm = canUserConfirmMatch(match, currentUserId);
-            const canReject = canUserRejectMatch(match, currentUserId);
-            const proposalForm = counterProposalForms[match.id] ?? {
-              scoreA: String(teamA?.score ?? ""),
-              scoreB: String(teamB?.score ?? ""),
-              reason: ""
-            };
+          {visibleMatches.map((match) =>
+            renderMatchCard(match, match.id === latestMatch?.id ? "Neueste" : "Aktion offen")
+          )}
 
-            return (
-              <article
-                className="grid min-w-0 gap-4 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"
-                key={match.id}
+          {historyMatches.length > 0 ? (
+            <div className="grid gap-3 border-t border-[#e2e8df] pt-3">
+              <button
+                className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-3 rounded-lg border border-[#ccd7c7] bg-white px-4 py-3 text-left font-extrabold text-[#172018]"
+                type="button"
+                aria-expanded={isHistoryExpanded}
+                onClick={() =>
+                  setIsHistoryExpanded((currentIsExpanded) => !currentIsExpanded)
+                }
               >
-                <div className="grid min-w-0 gap-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
-                        match.status === "COMPLETED"
-                          ? "bg-[#e0f2e8] text-[#2f6f4e]"
-                          : match.status === "PENDING_COUNTER_CONFIRMATION"
-                            ? "bg-[#e8edf8] text-[#2c4b83]"
-                          : "bg-[#fff4d6] text-[#7a5b00]"
-                      }`}
-                    >
-                      {getStatusLabel(match.status)}
-                    </span>
-                    <span className="text-sm text-[#667064]">
-                      {formatDate(match.playedAt)} · eingereicht von{" "}
-                      {match.createdBy.displayName}
-                    </span>
-                  </div>
+                <span>
+                  {isHistoryExpanded ? "Verlauf ausblenden" : "Ältere Matches anzeigen"}
+                </span>
+                <span className="shrink-0 text-sm text-[#667064]">
+                  {historyMatches.length}
+                </span>
+              </button>
 
-                  <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
-                    <TeamSummary team={teamA} />
-                    <strong className="text-center text-[#667064]">vs</strong>
-                    <TeamSummary team={teamB} />
-                  </div>
-
-                  {match.status === "PENDING_COUNTER_CONFIRMATION" ? (
-                    <p className="m-0 text-sm leading-6 text-[#667064]">
-                      Gegenvorschlag von {match.counterProposedBy?.displayName ?? "Gegner"}
-                      {match.counterReason ? `: ${match.counterReason}` : "."}
-                    </p>
-                  ) : null}
-
-                  {editingRejectMatchId === match.id ? (
-                    <div className="grid gap-3 rounded-lg border border-[#d5ddd1] bg-white p-3">
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <label className="grid gap-2 text-sm font-bold">
-                          <span>Team A Punkte</span>
-                          <input
-                            className="w-full rounded-lg border border-[#ccd7c7] bg-white px-3 py-2.5 text-[#172018] outline-[#c8ead8] focus:border-[#2f6f4e] focus:outline-3"
-                            inputMode="numeric"
-                            min={0}
-                            type="number"
-                            value={proposalForm.scoreA}
-                            onChange={(event) =>
-                              setCounterProposalForms((current) => ({
-                                ...current,
-                                [match.id]: {
-                                  ...proposalForm,
-                                  scoreA: event.target.value
-                                }
-                              }))
-                            }
-                          />
-                        </label>
-                        <label className="grid gap-2 text-sm font-bold">
-                          <span>Team B Punkte</span>
-                          <input
-                            className="w-full rounded-lg border border-[#ccd7c7] bg-white px-3 py-2.5 text-[#172018] outline-[#c8ead8] focus:border-[#2f6f4e] focus:outline-3"
-                            inputMode="numeric"
-                            min={0}
-                            type="number"
-                            value={proposalForm.scoreB}
-                            onChange={(event) =>
-                              setCounterProposalForms((current) => ({
-                                ...current,
-                                [match.id]: {
-                                  ...proposalForm,
-                                  scoreB: event.target.value
-                                }
-                              }))
-                            }
-                          />
-                        </label>
-                      </div>
-                      <label className="grid gap-2 text-sm font-bold">
-                        <span>Hinweis</span>
-                        <input
-                          className="w-full rounded-lg border border-[#ccd7c7] bg-white px-3 py-2.5 text-[#172018] outline-[#c8ead8] focus:border-[#2f6f4e] focus:outline-3"
-                          value={proposalForm.reason}
-                          onChange={(event) =>
-                            setCounterProposalForms((current) => ({
-                              ...current,
-                              [match.id]: {
-                                ...proposalForm,
-                                reason: event.target.value
-                              }
-                            }))
-                          }
-                          placeholder="Optional"
-                        />
-                      </label>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                        <button
-                          className="min-h-10 rounded-lg border border-[#ccd7c7] px-4 py-2 font-extrabold text-[#172018]"
-                          type="button"
-                          onClick={() => setEditingRejectMatchId(null)}
-                        >
-                          Abbrechen
-                        </button>
-                        <button
-                          className="min-h-10 rounded-lg bg-[#265c42] px-4 py-2 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65"
-                          disabled={rejectingMatchId === match.id}
-                          type="button"
-                          onClick={() => void rejectMatch(match.id)}
-                        >
-                          {rejectingMatchId === match.id
-                            ? "Sendet..."
-                            : "Gegenvorschlag senden"}
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
+              {isHistoryExpanded ? (
+                <div className="grid gap-3">
+                  {historyMatches.map((match) => renderMatchCard(match))}
                 </div>
-
-                {canConfirm || canReject ? (
-                  <div className="grid gap-2 lg:w-auto">
-                    {canConfirm ? (
-                      <button
-                        className="min-h-11 w-full cursor-pointer rounded-lg bg-[#265c42] px-4 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65 lg:w-auto"
-                        disabled={confirmingMatchId === match.id}
-                        type="button"
-                        onClick={() => void confirmMatch(match.id)}
-                      >
-                        {confirmingMatchId === match.id
-                          ? "Bestätigt..."
-                          : match.status === "PENDING_COUNTER_CONFIRMATION"
-                            ? "Gegenvorschlag bestätigen"
-                            : "Ergebnis bestätigen"}
-                      </button>
-                    ) : null}
-                    {canReject ? (
-                      <button
-                        className="min-h-11 w-full cursor-pointer rounded-lg border border-[#ccd7c7] bg-white px-4 py-3 font-extrabold text-[#172018] lg:w-auto"
-                        type="button"
-                        onClick={() => {
-                          setCounterProposalForms((current) => ({
-                            ...current,
-                            [match.id]: proposalForm
-                          }));
-                          setEditingRejectMatchId(match.id);
-                        }}
-                      >
-                        Ablehnen und korrigieren
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-              </article>
-            );
-          })}
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>
