@@ -120,6 +120,7 @@ export function TournamentDetailPage({ tournamentId }: TournamentDetailPageProps
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_320px] xl:gap-6">
         <div className="grid min-w-0 gap-5 xl:gap-6">
           <MatchForm
+            currentUserId={currentUser?.id ?? null}
             participants={tournament.participants}
             tournamentId={tournament.id}
             onMatchSaved={() =>

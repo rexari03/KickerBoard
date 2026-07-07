@@ -23,12 +23,14 @@ const initialState: MatchFormState = {
 };
 
 type MatchFormProps = {
+  currentUserId: string | null;
   participants: TournamentParticipant[];
   tournamentId: string;
   onMatchSaved?: () => void;
 };
 
 export function MatchForm({
+  currentUserId,
   participants,
   tournamentId,
   onMatchSaved
@@ -45,6 +47,20 @@ export function MatchForm({
 
   const playersPerTeam = form.mode === "ONE_VS_ONE" ? 1 : 2;
   const selectedPlayerIds = [...form.teamA, ...form.teamB].filter(Boolean);
+  const currentParticipantId = useMemo(
+    () =>
+      participants.find((participant) => participant.user.id === currentUserId)?.id ??
+      null,
+    [currentUserId, participants]
+  );
+
+  useEffect(() => {
+    if (!currentParticipantId) {
+      return;
+    }
+
+    setForm((current) => placeCurrentUserOnTeamA(current, currentParticipantId));
+  }, [currentParticipantId]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -95,7 +111,12 @@ export function MatchForm({
       setForm((current) => ({
         ...initialState,
         mode: current.mode,
-        teamA: emptyTeam(current.mode),
+        teamA: currentParticipantId
+          ? placeCurrentUserOnTeamA(
+              { ...current, teamA: emptyTeam(current.mode), teamB: emptyTeam(current.mode) },
+              currentParticipantId
+            ).teamA
+          : emptyTeam(current.mode),
         teamB: emptyTeam(current.mode)
       }));
       setMessage("Ergebnis eingereicht. Der Gegner muss es noch bestätigen.");
@@ -112,12 +133,18 @@ export function MatchForm({
   }
 
   function handleModeChange(mode: MatchMode) {
-    setForm((current) => ({
-      ...current,
-      mode,
-      teamA: resizeTeam(current.teamA, mode),
-      teamB: resizeTeam(current.teamB, mode)
-    }));
+    setForm((current) => {
+      const nextForm = {
+        ...current,
+        mode,
+        teamA: resizeTeam(current.teamA, mode),
+        teamB: resizeTeam(current.teamB, mode)
+      };
+
+      return currentParticipantId
+        ? placeCurrentUserOnTeamA(nextForm, currentParticipantId)
+        : nextForm;
+    });
   }
 
   function updateTeamPlayer(side: TeamSide, index: number, playerId: string) {
@@ -144,7 +171,7 @@ export function MatchForm({
             <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">Match</p>
             <h2 className="m-0 text-2xl font-extrabold">Ergebnis erfassen</h2>
             <p className="m-0 max-w-2xl text-sm leading-6 text-[#667064]">
-              Wähle Modus, Teams und Punkte. Du musst selbst mitgespielt haben;
+              Wähle Modus, Gegner und Punkte. Du bist automatisch im Match gesetzt;
               ein Gegner bestätigt das Ergebnis danach.
             </p>
           </div>
@@ -181,6 +208,7 @@ export function MatchForm({
             side="A"
             score={form.scoreA}
             selectedPlayerIds={selectedPlayerIds}
+            lockedPlayerIds={currentParticipantId ? [currentParticipantId] : []}
             participants={participants}
             team={form.teamA}
             onScoreChange={(score) =>
@@ -198,6 +226,7 @@ export function MatchForm({
             side="B"
             score={form.scoreB}
             selectedPlayerIds={selectedPlayerIds}
+            lockedPlayerIds={[]}
             participants={participants}
             team={form.teamB}
             onScoreChange={(score) =>
@@ -234,6 +263,7 @@ type TeamCardProps = {
   side: TeamSide;
   score: string;
   selectedPlayerIds: string[];
+  lockedPlayerIds: string[];
   participants: TournamentParticipant[];
   team: string[];
   onScoreChange: (score: string) => void;
@@ -245,6 +275,7 @@ function TeamCard({
   side,
   score,
   selectedPlayerIds,
+  lockedPlayerIds,
   participants,
   team,
   onScoreChange,
@@ -271,9 +302,12 @@ function TeamCard({
       <div className="grid gap-3">
         {team.map((playerId, index) => (
           <label className="grid gap-2 font-bold" key={`${side}-${index}`}>
-            <span>Spieler {index + 1}</span>
+            <span>
+              {lockedPlayerIds.includes(playerId) ? "Du" : `Spieler ${index + 1}`}
+            </span>
             <select
               className="w-full rounded-lg border border-[#ccd7c7] bg-white px-3.5 py-3 text-[#172018] outline-[#c8ead8] focus:border-[#2f6f4e] focus:outline-3"
+              disabled={lockedPlayerIds.includes(playerId)}
               required
               value={playerId}
               onChange={(event) => onPlayerChange(side, index, event.target.value)}
@@ -342,4 +376,24 @@ function resizeTeam(team: string[], mode: MatchMode) {
 
 function emptyTeam(mode: MatchMode) {
   return mode === "ONE_VS_ONE" ? [""] : ["", ""];
+}
+
+function placeCurrentUserOnTeamA(
+  form: MatchFormState,
+  currentParticipantId: string
+) {
+  const teamA = resizeTeam(
+    [currentParticipantId, ...form.teamA.filter((playerId) => playerId !== currentParticipantId)],
+    form.mode
+  );
+  const teamB = resizeTeam(
+    form.teamB.filter((playerId) => playerId !== currentParticipantId),
+    form.mode
+  );
+
+  return {
+    ...form,
+    teamA,
+    teamB
+  };
 }

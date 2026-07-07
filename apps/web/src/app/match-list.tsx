@@ -3,7 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 
 type TeamSide = "A" | "B";
-type MatchStatus = "PENDING_CONFIRMATION" | "COMPLETED" | "CANCELLED";
+type MatchStatus =
+  | "PENDING_CONFIRMATION"
+  | "PENDING_COUNTER_CONFIRMATION"
+  | "COMPLETED"
+  | "CANCELLED";
 
 type MatchListUser = {
   id: string;
@@ -30,9 +34,18 @@ type MatchItem = {
   playedAt: string;
   createdByUserId: string;
   confirmedAt: string | null;
+  counterProposedAt: string | null;
+  counterReason: string | null;
   createdBy: MatchListUser;
   confirmedBy: MatchListUser | null;
+  counterProposedBy: MatchListUser | null;
   teams: MatchTeam[];
+};
+
+type CounterProposalForm = {
+  scoreA: string;
+  scoreB: string;
+  reason: string;
 };
 
 type MatchListProps = {
@@ -50,6 +63,11 @@ export function MatchList({
 }: MatchListProps) {
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [confirmingMatchId, setConfirmingMatchId] = useState<string | null>(null);
+  const [rejectingMatchId, setRejectingMatchId] = useState<string | null>(null);
+  const [editingRejectMatchId, setEditingRejectMatchId] = useState<string | null>(null);
+  const [counterProposalForms, setCounterProposalForms] = useState<
+    Record<string, CounterProposalForm>
+  >({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -124,6 +142,56 @@ export function MatchList({
     }
   }
 
+  async function rejectMatch(matchId: string) {
+    const form = counterProposalForms[matchId];
+
+    if (!form) {
+      return;
+    }
+
+    setRejectingMatchId(matchId);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await fetch(
+        `${apiUrl}/tournaments/${tournamentId}/matches/${matchId}/reject`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            scoreA: Number(form.scoreA),
+            scoreB: Number(form.scoreB),
+            reason: form.reason
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+
+        throw new Error(payload?.error ?? "Gegenvorschlag konnte nicht gespeichert werden.");
+      }
+
+      setMessage("Gegenvorschlag gesendet.");
+      setEditingRejectMatchId(null);
+      await loadMatches();
+    } catch (rejectError) {
+      setError(
+        rejectError instanceof Error
+          ? rejectError.message
+          : "Gegenvorschlag konnte nicht gespeichert werden."
+      );
+    } finally {
+      setRejectingMatchId(null);
+    }
+  }
+
   return (
     <section className="min-w-0 rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6">
       <div className="grid gap-1.5">
@@ -150,6 +218,12 @@ export function MatchList({
             const teamA = match.teams.find((team) => team.side === "A");
             const teamB = match.teams.find((team) => team.side === "B");
             const canConfirm = canUserConfirmMatch(match, currentUserId);
+            const canReject = canUserRejectMatch(match, currentUserId);
+            const proposalForm = counterProposalForms[match.id] ?? {
+              scoreA: String(teamA?.score ?? ""),
+              scoreB: String(teamB?.score ?? ""),
+              reason: ""
+            };
 
             return (
               <article
@@ -162,12 +236,12 @@ export function MatchList({
                       className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
                         match.status === "COMPLETED"
                           ? "bg-[#e0f2e8] text-[#2f6f4e]"
+                          : match.status === "PENDING_COUNTER_CONFIRMATION"
+                            ? "bg-[#e8edf8] text-[#2c4b83]"
                           : "bg-[#fff4d6] text-[#7a5b00]"
                       }`}
                     >
-                      {match.status === "COMPLETED"
-                        ? "Bestätigt"
-                        : "Wartet auf Bestätigung"}
+                      {getStatusLabel(match.status)}
                     </span>
                     <span className="text-sm text-[#667064]">
                       {formatDate(match.playedAt)} · eingereicht von{" "}
@@ -180,19 +254,128 @@ export function MatchList({
                     <strong className="text-center text-[#667064]">vs</strong>
                     <TeamSummary team={teamB} />
                   </div>
+
+                  {match.status === "PENDING_COUNTER_CONFIRMATION" ? (
+                    <p className="m-0 text-sm leading-6 text-[#667064]">
+                      Gegenvorschlag von {match.counterProposedBy?.displayName ?? "Gegner"}
+                      {match.counterReason ? `: ${match.counterReason}` : "."}
+                    </p>
+                  ) : null}
+
+                  {editingRejectMatchId === match.id ? (
+                    <div className="grid gap-3 rounded-lg border border-[#d5ddd1] bg-white p-3">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="grid gap-2 text-sm font-bold">
+                          <span>Team A Punkte</span>
+                          <input
+                            className="w-full rounded-lg border border-[#ccd7c7] bg-white px-3 py-2.5 text-[#172018] outline-[#c8ead8] focus:border-[#2f6f4e] focus:outline-3"
+                            inputMode="numeric"
+                            min={0}
+                            type="number"
+                            value={proposalForm.scoreA}
+                            onChange={(event) =>
+                              setCounterProposalForms((current) => ({
+                                ...current,
+                                [match.id]: {
+                                  ...proposalForm,
+                                  scoreA: event.target.value
+                                }
+                              }))
+                            }
+                          />
+                        </label>
+                        <label className="grid gap-2 text-sm font-bold">
+                          <span>Team B Punkte</span>
+                          <input
+                            className="w-full rounded-lg border border-[#ccd7c7] bg-white px-3 py-2.5 text-[#172018] outline-[#c8ead8] focus:border-[#2f6f4e] focus:outline-3"
+                            inputMode="numeric"
+                            min={0}
+                            type="number"
+                            value={proposalForm.scoreB}
+                            onChange={(event) =>
+                              setCounterProposalForms((current) => ({
+                                ...current,
+                                [match.id]: {
+                                  ...proposalForm,
+                                  scoreB: event.target.value
+                                }
+                              }))
+                            }
+                          />
+                        </label>
+                      </div>
+                      <label className="grid gap-2 text-sm font-bold">
+                        <span>Hinweis</span>
+                        <input
+                          className="w-full rounded-lg border border-[#ccd7c7] bg-white px-3 py-2.5 text-[#172018] outline-[#c8ead8] focus:border-[#2f6f4e] focus:outline-3"
+                          value={proposalForm.reason}
+                          onChange={(event) =>
+                            setCounterProposalForms((current) => ({
+                              ...current,
+                              [match.id]: {
+                                ...proposalForm,
+                                reason: event.target.value
+                              }
+                            }))
+                          }
+                          placeholder="Optional"
+                        />
+                      </label>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                        <button
+                          className="min-h-10 rounded-lg border border-[#ccd7c7] px-4 py-2 font-extrabold text-[#172018]"
+                          type="button"
+                          onClick={() => setEditingRejectMatchId(null)}
+                        >
+                          Abbrechen
+                        </button>
+                        <button
+                          className="min-h-10 rounded-lg bg-[#265c42] px-4 py-2 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65"
+                          disabled={rejectingMatchId === match.id}
+                          type="button"
+                          onClick={() => void rejectMatch(match.id)}
+                        >
+                          {rejectingMatchId === match.id
+                            ? "Sendet..."
+                            : "Gegenvorschlag senden"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
-                {canConfirm ? (
-                  <button
-                    className="min-h-11 w-full cursor-pointer rounded-lg bg-[#265c42] px-4 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65 lg:w-auto"
-                    disabled={confirmingMatchId === match.id}
-                    type="button"
-                    onClick={() => void confirmMatch(match.id)}
-                  >
-                    {confirmingMatchId === match.id
-                      ? "Bestätigt..."
-                      : "Ergebnis bestätigen"}
-                  </button>
+                {canConfirm || canReject ? (
+                  <div className="grid gap-2 lg:w-auto">
+                    {canConfirm ? (
+                      <button
+                        className="min-h-11 w-full cursor-pointer rounded-lg bg-[#265c42] px-4 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65 lg:w-auto"
+                        disabled={confirmingMatchId === match.id}
+                        type="button"
+                        onClick={() => void confirmMatch(match.id)}
+                      >
+                        {confirmingMatchId === match.id
+                          ? "Bestätigt..."
+                          : match.status === "PENDING_COUNTER_CONFIRMATION"
+                            ? "Gegenvorschlag bestätigen"
+                            : "Ergebnis bestätigen"}
+                      </button>
+                    ) : null}
+                    {canReject ? (
+                      <button
+                        className="min-h-11 w-full cursor-pointer rounded-lg border border-[#ccd7c7] bg-white px-4 py-3 font-extrabold text-[#172018] lg:w-auto"
+                        type="button"
+                        onClick={() => {
+                          setCounterProposalForms((current) => ({
+                            ...current,
+                            [match.id]: proposalForm
+                          }));
+                          setEditingRejectMatchId(match.id);
+                        }}
+                      >
+                        Ablehnen und korrigieren
+                      </button>
+                    ) : null}
+                  </div>
                 ) : null}
               </article>
             );
@@ -227,10 +410,11 @@ function TeamSummary({ team }: { team?: MatchTeam }) {
 }
 
 function canUserConfirmMatch(match: MatchItem, currentUserId: string) {
-  if (
-    match.status !== "PENDING_CONFIRMATION" ||
-    match.createdByUserId === currentUserId
-  ) {
+  if (match.status === "PENDING_COUNTER_CONFIRMATION") {
+    return match.createdByUserId === currentUserId;
+  }
+
+  if (match.status !== "PENDING_CONFIRMATION" || match.createdByUserId === currentUserId) {
     return false;
   }
 
@@ -240,6 +424,35 @@ function canUserConfirmMatch(match: MatchItem, currentUserId: string) {
   return Boolean(
     submittingSide && currentUserSide && submittingSide !== currentUserSide
   );
+}
+
+function canUserRejectMatch(match: MatchItem, currentUserId: string) {
+  if (match.status !== "PENDING_CONFIRMATION" || match.createdByUserId === currentUserId) {
+    return false;
+  }
+
+  const submittingSide = findUserSide(match, match.createdByUserId);
+  const currentUserSide = findUserSide(match, currentUserId);
+
+  return Boolean(
+    submittingSide && currentUserSide && submittingSide !== currentUserSide
+  );
+}
+
+function getStatusLabel(status: MatchStatus) {
+  if (status === "COMPLETED") {
+    return "Bestätigt";
+  }
+
+  if (status === "PENDING_COUNTER_CONFIRMATION") {
+    return "Gegenvorschlag offen";
+  }
+
+  if (status === "CANCELLED") {
+    return "Abgebrochen";
+  }
+
+  return "Wartet auf Bestätigung";
 }
 
 function findUserSide(match: MatchItem, userId: string) {

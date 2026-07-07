@@ -17,6 +17,12 @@ type CreateMatchBody = {
   teams?: unknown;
 };
 
+type RejectMatchBody = {
+  scoreA?: unknown;
+  scoreB?: unknown;
+  reason?: unknown;
+};
+
 type ParsedTeam = {
   side: TeamSide;
   score: number;
@@ -32,6 +38,12 @@ const matchInclude = {
     }
   },
   confirmedBy: {
+    select: {
+      id: true,
+      displayName: true
+    }
+  },
+  counterProposedBy: {
     select: {
       id: true,
       displayName: true
@@ -217,25 +229,36 @@ export async function registerMatchRoutes(server: FastifyInstance) {
         });
       }
 
-      if (match.status !== "PENDING_CONFIRMATION") {
+      if (
+        match.status !== "PENDING_CONFIRMATION" &&
+        match.status !== "PENDING_COUNTER_CONFIRMATION"
+      ) {
         return reply.code(400).send({
           error: "match is not waiting for confirmation"
         });
       }
 
-      if (match.createdByUserId === user.id) {
+      if (match.status === "PENDING_COUNTER_CONFIRMATION" && match.createdByUserId !== user.id) {
         return reply.code(403).send({
-          error: "the opponent must confirm the result"
+          error: "the original submitter must confirm the proposed correction"
         });
       }
 
-      const submittingSide = findUserTeamSide(match.teams, match.createdByUserId);
-      const confirmingSide = findUserTeamSide(match.teams, user.id);
+      if (match.status === "PENDING_CONFIRMATION") {
+        if (match.createdByUserId === user.id) {
+          return reply.code(403).send({
+            error: "the opponent must confirm the result"
+          });
+        }
 
-      if (!submittingSide || !confirmingSide || submittingSide === confirmingSide) {
-        return reply.code(403).send({
-          error: "only an opponent from this match can confirm the result"
-        });
+        const submittingSide = findUserTeamSide(match.teams, match.createdByUserId);
+        const confirmingSide = findUserTeamSide(match.teams, user.id);
+
+        if (!submittingSide || !confirmingSide || submittingSide === confirmingSide) {
+          return reply.code(403).send({
+            error: "only an opponent from this match can confirm the result"
+          });
+        }
       }
 
       const confirmedMatch = await prisma.match.update({
@@ -251,6 +274,117 @@ export async function registerMatchRoutes(server: FastifyInstance) {
       });
 
       return confirmedMatch;
+    }
+  );
+
+  server.post<{ Params: MatchParams; Body: RejectMatchBody }>(
+    "/tournaments/:tournamentId/matches/:matchId/reject",
+    async (request, reply) => {
+      const user = await requireCurrentUser(request, reply);
+
+      if (!user) {
+        return;
+      }
+
+      const membership = await findTournamentMembership(
+        request.params.tournamentId,
+        user.id
+      );
+
+      if (!membership) {
+        return reply.code(403).send({
+          error: "tournament membership required"
+        });
+      }
+
+      const match = await prisma.match.findFirst({
+        where: {
+          id: request.params.matchId,
+          tournamentId: request.params.tournamentId
+        },
+        include: matchInclude
+      });
+
+      if (!match) {
+        return reply.code(404).send({
+          error: "match not found"
+        });
+      }
+
+      if (match.status !== "PENDING_CONFIRMATION") {
+        return reply.code(400).send({
+          error: "only pending results can be rejected"
+        });
+      }
+
+      if (match.createdByUserId === user.id) {
+        return reply.code(403).send({
+          error: "the opponent must reject the result"
+        });
+      }
+
+      const submittingSide = findUserTeamSide(match.teams, match.createdByUserId);
+      const rejectingSide = findUserTeamSide(match.teams, user.id);
+
+      if (!submittingSide || !rejectingSide || submittingSide === rejectingSide) {
+        return reply.code(403).send({
+          error: "only an opponent from this match can reject the result"
+        });
+      }
+
+      const validation = validateCounterProposal(request.body);
+
+      if (!validation.ok) {
+        return reply.code(400).send({
+          error: validation.error
+        });
+      }
+
+      const updatedMatch = await prisma.$transaction(async (transaction) => {
+        const winnerSide = validation.data.scoreA > validation.data.scoreB ? "A" : "B";
+
+        await Promise.all([
+          transaction.matchTeam.update({
+            where: {
+              matchId_side: {
+                matchId: match.id,
+                side: "A"
+              }
+            },
+            data: {
+              score: validation.data.scoreA,
+              isWinner: winnerSide === "A"
+            }
+          }),
+          transaction.matchTeam.update({
+            where: {
+              matchId_side: {
+                matchId: match.id,
+                side: "B"
+              }
+            },
+            data: {
+              score: validation.data.scoreB,
+              isWinner: winnerSide === "B"
+            }
+          })
+        ]);
+
+        return transaction.match.update({
+          where: {
+            id: match.id
+          },
+          data: {
+            status: "PENDING_COUNTER_CONFIRMATION",
+            counterProposedByUserId: user.id,
+            counterProposedAt: new Date(),
+            counterReason: validation.data.reason
+          },
+          include: matchInclude
+        });
+      });
+
+      return updatedMatch;
     }
   );
 }
@@ -349,6 +483,42 @@ function validateCreateMatch(body: CreateMatchBody):
   };
 }
 
+function validateCounterProposal(body: RejectMatchBody):
+  | {
+      ok: true;
+      data: {
+        scoreA: number;
+        scoreB: number;
+        reason: string | null;
+      };
+    }
+  | { ok: false; error: string } {
+  const scoreA = parseScore(body.scoreA);
+  const scoreB = parseScore(body.scoreB);
+  const reason = parseOptionalText(body.reason);
+
+  if (scoreA === null || scoreB === null) {
+    return { ok: false, error: "scores must be whole numbers greater than or equal to 0" };
+  }
+
+  if (scoreA === scoreB) {
+    return { ok: false, error: "matches cannot end in a draw" };
+  }
+
+  if (reason === false) {
+    return { ok: false, error: "reason must be text when provided" };
+  }
+
+  return {
+    ok: true,
+    data: {
+      scoreA,
+      scoreB,
+      reason
+    }
+  };
+}
+
 function parseTeam(value: unknown): ParsedTeam | null {
   if (!isRecord(value)) {
     return null;
@@ -412,6 +582,19 @@ function parseDate(value: unknown) {
 function normalizeString(value: unknown) {
   if (typeof value !== "string") {
     return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function parseOptionalText(value: unknown) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    return false;
   }
 
   const trimmed = value.trim();

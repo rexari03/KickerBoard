@@ -29,6 +29,7 @@ enum MatchMode {
 
 enum MatchStatus {
   PENDING_CONFIRMATION
+  PENDING_COUNTER_CONFIRMATION
   COMPLETED
   CANCELLED
 }
@@ -47,12 +48,13 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  ownedTournaments Tournament[]            @relation("TournamentOwner")
-  memberships      TournamentParticipant[]
-  createdMatches   Match[]                 @relation("CreatedMatches")
-  confirmedMatches Match[]                 @relation("ConfirmedMatches")
-  auditLogs        AuditLog[]              @relation("AuditActor")
-  sessions         Session[]
+  ownedTournaments       Tournament[]            @relation("TournamentOwner")
+  memberships            TournamentParticipant[]
+  createdMatches         Match[]                 @relation("CreatedMatches")
+  confirmedMatches       Match[]                 @relation("ConfirmedMatches")
+  counterProposedMatches Match[]                 @relation("CounterProposedMatches")
+  auditLogs              AuditLog[]              @relation("AuditActor")
+  sessions               Session[]
 
   @@index([displayName])
 }
@@ -109,27 +111,32 @@ model TournamentParticipant {
 }
 
 model Match {
-  id                String      @id @default(cuid())
-  tournamentId      String
-  mode              MatchMode
-  status            MatchStatus @default(COMPLETED)
-  playedAt          DateTime    @default(now())
-  createdByUserId   String
-  confirmedByUserId String?
-  confirmedAt       DateTime?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  id                      String      @id @default(cuid())
+  tournamentId            String
+  mode                    MatchMode
+  status                  MatchStatus @default(COMPLETED)
+  playedAt                DateTime    @default(now())
+  createdByUserId         String
+  confirmedByUserId       String?
+  counterProposedByUserId String?
+  counterProposedAt       DateTime?
+  counterReason           String?
+  confirmedAt             DateTime?
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
 
-  tournament  Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  createdBy   User        @relation("CreatedMatches", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  confirmedBy User?       @relation("ConfirmedMatches", fields: [confirmedByUserId], references: [id], onDelete: SetNull)
-  teams       MatchTeam[]
+  tournament        Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  createdBy         User        @relation("CreatedMatches", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  confirmedBy       User?       @relation("ConfirmedMatches", fields: [confirmedByUserId], references: [id], onDelete: SetNull)
+  counterProposedBy User?       @relation("CounterProposedMatches", fields: [counterProposedByUserId], references: [id], onDelete: SetNull)
+  teams             MatchTeam[]
 
   @@index([tournamentId])
   @@index([playedAt])
   @@index([mode])
   @@index([status])
   @@index([confirmedByUserId])
+  @@index([counterProposedByUserId])
 }
 
 model MatchTeam {
