@@ -8,9 +8,13 @@ import { registerMatchRoutes } from "./routes/matches.js";
 import { registerPlayerRoutes } from "./routes/players.js";
 import { registerRankingRoutes } from "./routes/rankings.js";
 import { registerTournamentRoutes } from "./routes/tournaments.js";
+import { registerRateLimit } from "./security/rate-limit.js";
+
+const trustProxy = process.env.TRUST_PROXY === "true";
 
 const server = Fastify({
-  logger: true
+  logger: true,
+  trustProxy
 });
 
 const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:3000";
@@ -21,6 +25,8 @@ await server.register(cors, {
   origin: frontendOrigin,
   credentials: true
 });
+
+await registerRateLimit(server);
 
 server.get("/health", async () => {
   return {
