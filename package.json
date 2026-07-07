@@ -2,14 +2,18 @@
   "name": "kicker-board",
   "private": true,
   "version": "0.1.0",
-  "packageManager": "pnpm@11.7.0",
+  "packageManager": "npm@10.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "pnpm --parallel --filter @kicker-board/web --filter @kicker-board/api dev",
-    "dev:web": "pnpm --filter @kicker-board/web dev",
-    "dev:api": "pnpm --filter @kicker-board/api dev",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck"
+    "dev": "npm run dev:web",
+    "dev:web": "npm run dev --workspace @kicker-board/web",
+    "dev:api": "npm run dev --workspace @kicker-board/api",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

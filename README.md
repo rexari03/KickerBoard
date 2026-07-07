@@ -117,8 +117,8 @@ packages/
 Nach Installation der Dependencies:
 
 ```bash
-pnpm install
-pnpm dev
+npm install
+npm run dev:web
 ```
 
 Die API stellt initial `GET /health` bereit.
