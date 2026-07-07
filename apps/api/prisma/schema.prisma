@@ -28,6 +28,7 @@ enum MatchMode {
 }
 
 enum MatchStatus {
+  PENDING_CONFIRMATION
   COMPLETED
   CANCELLED
 }
@@ -49,6 +50,7 @@ model User {
   ownedTournaments Tournament[]            @relation("TournamentOwner")
   memberships      TournamentParticipant[]
   createdMatches   Match[]                 @relation("CreatedMatches")
+  confirmedMatches Match[]                 @relation("ConfirmedMatches")
   auditLogs        AuditLog[]              @relation("AuditActor")
   sessions         Session[]
 
@@ -107,23 +109,27 @@ model TournamentParticipant {
 }
 
 model Match {
-  id              String      @id @default(cuid())
-  tournamentId    String
-  mode            MatchMode
-  status          MatchStatus @default(COMPLETED)
-  playedAt        DateTime    @default(now())
-  createdByUserId String
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id                String      @id @default(cuid())
+  tournamentId      String
+  mode              MatchMode
+  status            MatchStatus @default(COMPLETED)
+  playedAt          DateTime    @default(now())
+  createdByUserId   String
+  confirmedByUserId String?
+  confirmedAt       DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
-  tournament Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
-  createdBy  User        @relation("CreatedMatches", fields: [createdByUserId], references: [id], onDelete: Restrict)
-  teams      MatchTeam[]
+  tournament  Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  createdBy   User        @relation("CreatedMatches", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  confirmedBy User?       @relation("ConfirmedMatches", fields: [confirmedByUserId], references: [id], onDelete: SetNull)
+  teams       MatchTeam[]
 
   @@index([tournamentId])
   @@index([playedAt])
   @@index([mode])
   @@index([status])
+  @@index([confirmedByUserId])
 }
 
 model MatchTeam {

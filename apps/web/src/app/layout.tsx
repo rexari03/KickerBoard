@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { AppHeader } from "./app-header";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,7 +15,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de">
-      <body className="bg-[#f5f7f2] text-[#172018] antialiased">{children}</body>
+      <body className="bg-[#f5f7f2] text-[#172018] antialiased">
+        <AppHeader />
+        {children}
+      </body>
     </html>
   );
 }

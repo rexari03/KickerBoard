@@ -7,6 +7,10 @@ type TournamentParams = {
   tournamentId: string;
 };
 
+type MatchParams = TournamentParams & {
+  matchId: string;
+};
+
 type CreateMatchBody = {
   mode?: unknown;
   playedAt?: unknown;
@@ -18,6 +22,42 @@ type ParsedTeam = {
   score: number;
   isWinner: boolean;
   participantIds: string[];
+};
+
+const matchInclude = {
+  createdBy: {
+    select: {
+      id: true,
+      displayName: true
+    }
+  },
+  confirmedBy: {
+    select: {
+      id: true,
+      displayName: true
+    }
+  },
+  teams: {
+    orderBy: {
+      side: "asc" as const
+    },
+    include: {
+      participants: {
+        include: {
+          tournamentParticipant: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  displayName: true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 };
 
 export async function registerMatchRoutes(server: FastifyInstance) {
@@ -48,35 +88,7 @@ export async function registerMatchRoutes(server: FastifyInstance) {
         orderBy: {
           playedAt: "desc"
         },
-        include: {
-          createdBy: {
-            select: {
-              id: true,
-              displayName: true
-            }
-          },
-          teams: {
-            orderBy: {
-              side: "asc"
-            },
-            include: {
-              participants: {
-                include: {
-                  tournamentParticipant: {
-                    include: {
-                      user: {
-                        select: {
-                          id: true,
-                          displayName: true
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+        include: matchInclude
       });
     }
   );
@@ -138,10 +150,17 @@ export async function registerMatchRoutes(server: FastifyInstance) {
         });
       }
 
+      if (!participantIds.includes(membership.id)) {
+        return reply.code(403).send({
+          error: "you can only submit results for matches you played in"
+        });
+      }
+
       const match = await prisma.match.create({
         data: {
           tournamentId: request.params.tournamentId,
           mode,
+          status: "PENDING_CONFIRMATION",
           playedAt,
           createdByUserId: user.id,
           teams: {
@@ -157,32 +176,81 @@ export async function registerMatchRoutes(server: FastifyInstance) {
             }))
           }
         },
-        include: {
-          teams: {
-            orderBy: {
-              side: "asc"
-            },
-            include: {
-              participants: {
-                include: {
-                  tournamentParticipant: {
-                    include: {
-                      user: {
-                        select: {
-                          id: true,
-                          displayName: true
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
+        include: matchInclude
       });
 
       return reply.code(201).send(match);
+    }
+  );
+
+  server.post<{ Params: MatchParams }>(
+    "/tournaments/:tournamentId/matches/:matchId/confirm",
+    async (request, reply) => {
+      const user = await requireCurrentUser(request, reply);
+
+      if (!user) {
+        return;
+      }
+
+      const membership = await findTournamentMembership(
+        request.params.tournamentId,
+        user.id
+      );
+
+      if (!membership) {
+        return reply.code(403).send({
+          error: "tournament membership required"
+        });
+      }
+
+      const match = await prisma.match.findFirst({
+        where: {
+          id: request.params.matchId,
+          tournamentId: request.params.tournamentId
+        },
+        include: matchInclude
+      });
+
+      if (!match) {
+        return reply.code(404).send({
+          error: "match not found"
+        });
+      }
+
+      if (match.status !== "PENDING_CONFIRMATION") {
+        return reply.code(400).send({
+          error: "match is not waiting for confirmation"
+        });
+      }
+
+      if (match.createdByUserId === user.id) {
+        return reply.code(403).send({
+          error: "the opponent must confirm the result"
+        });
+      }
+
+      const submittingSide = findUserTeamSide(match.teams, match.createdByUserId);
+      const confirmingSide = findUserTeamSide(match.teams, user.id);
+
+      if (!submittingSide || !confirmingSide || submittingSide === confirmingSide) {
+        return reply.code(403).send({
+          error: "only an opponent from this match can confirm the result"
+        });
+      }
+
+      const confirmedMatch = await prisma.match.update({
+        where: {
+          id: match.id
+        },
+        data: {
+          status: "COMPLETED",
+          confirmedByUserId: user.id,
+          confirmedAt: new Date()
+        },
+        include: matchInclude
+      });
+
+      return confirmedMatch;
     }
   );
 }
@@ -352,4 +420,26 @@ function normalizeString(value: unknown) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function findUserTeamSide(
+  teams: Array<{
+    side: TeamSide;
+    participants: Array<{
+      tournamentParticipant: {
+        user: {
+          id: string;
+        };
+      };
+    }>;
+  }>,
+  userId: string
+) {
+  return (
+    teams.find((team) =>
+      team.participants.some(
+        (participant) => participant.tournamentParticipant.user.id === userId
+      )
+    )?.side ?? null
+  );
 }

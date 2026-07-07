@@ -1,0 +1,260 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+type TeamSide = "A" | "B";
+type MatchStatus = "PENDING_CONFIRMATION" | "COMPLETED" | "CANCELLED";
+
+type MatchListUser = {
+  id: string;
+  displayName: string;
+};
+
+type MatchParticipant = {
+  tournamentParticipant: {
+    user: MatchListUser;
+  };
+};
+
+type MatchTeam = {
+  side: TeamSide;
+  score: number;
+  isWinner: boolean;
+  participants: MatchParticipant[];
+};
+
+type MatchItem = {
+  id: string;
+  mode: "ONE_VS_ONE" | "TWO_VS_TWO";
+  status: MatchStatus;
+  playedAt: string;
+  createdByUserId: string;
+  confirmedAt: string | null;
+  createdBy: MatchListUser;
+  confirmedBy: MatchListUser | null;
+  teams: MatchTeam[];
+};
+
+type MatchListProps = {
+  currentUserId: string;
+  refreshKey: number;
+  tournamentId: string;
+  onMatchConfirmed?: () => void;
+};
+
+export function MatchList({
+  currentUserId,
+  refreshKey,
+  tournamentId,
+  onMatchConfirmed
+}: MatchListProps) {
+  const [matches, setMatches] = useState<MatchItem[]>([]);
+  const [confirmingMatchId, setConfirmingMatchId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const apiUrl = useMemo(
+    () => process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000",
+    []
+  );
+
+  useEffect(() => {
+    void loadMatches();
+  }, [refreshKey, tournamentId]);
+
+  async function loadMatches() {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${apiUrl}/tournaments/${tournamentId}/matches`, {
+        credentials: "include"
+      });
+
+      if (!response.ok) {
+        throw new Error("Matches konnten nicht geladen werden.");
+      }
+
+      setMatches((await response.json()) as MatchItem[]);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Matches konnten nicht geladen werden."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function confirmMatch(matchId: string) {
+    setConfirmingMatchId(matchId);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await fetch(
+        `${apiUrl}/tournaments/${tournamentId}/matches/${matchId}/confirm`,
+        {
+          method: "POST",
+          credentials: "include"
+        }
+      );
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+
+        throw new Error(payload?.error ?? "Match konnte nicht bestätigt werden.");
+      }
+
+      setMessage("Ergebnis bestätigt.");
+      await loadMatches();
+      onMatchConfirmed?.();
+    } catch (confirmError) {
+      setError(
+        confirmError instanceof Error
+          ? confirmError.message
+          : "Match konnte nicht bestätigt werden."
+      );
+    } finally {
+      setConfirmingMatchId(null);
+    }
+  }
+
+  return (
+    <section className="rounded-lg border border-[#d5ddd1] bg-white p-6">
+      <div className="grid gap-1.5">
+        <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">Matches</p>
+        <h2 className="m-0 text-2xl font-extrabold">Ergebnisse</h2>
+        <p className="m-0 max-w-2xl text-sm leading-6 text-[#667064]">
+          Offene Ergebnisse zählen erst nach Bestätigung durch einen Gegner.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <p className="m-0 mt-4 text-[#667064]">Matches werden geladen...</p>
+      ) : null}
+      {message ? <p className="m-0 mt-4 font-bold text-[#2f6f4e]">{message}</p> : null}
+      {error ? <p className="m-0 mt-4 font-bold text-[#9f2f24]">{error}</p> : null}
+
+      {!isLoading && !error && matches.length === 0 ? (
+        <p className="m-0 mt-4 text-[#667064]">Noch keine Matches erfasst.</p>
+      ) : null}
+
+      {!isLoading && matches.length > 0 ? (
+        <div className="mt-5 grid gap-3">
+          {matches.map((match) => {
+            const teamA = match.teams.find((team) => team.side === "A");
+            const teamB = match.teams.find((team) => team.side === "B");
+            const canConfirm = canUserConfirmMatch(match, currentUserId);
+
+            return (
+              <article
+                className="grid gap-4 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-4 lg:grid-cols-[1fr_auto] lg:items-center"
+                key={match.id}
+              >
+                <div className="grid gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${
+                        match.status === "COMPLETED"
+                          ? "bg-[#e0f2e8] text-[#2f6f4e]"
+                          : "bg-[#fff4d6] text-[#7a5b00]"
+                      }`}
+                    >
+                      {match.status === "COMPLETED"
+                        ? "Bestätigt"
+                        : "Wartet auf Bestätigung"}
+                    </span>
+                    <span className="text-sm text-[#667064]">
+                      {formatDate(match.playedAt)} · eingereicht von{" "}
+                      {match.createdBy.displayName}
+                    </span>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
+                    <TeamSummary team={teamA} />
+                    <strong className="text-center text-[#667064]">vs</strong>
+                    <TeamSummary team={teamB} />
+                  </div>
+                </div>
+
+                {canConfirm ? (
+                  <button
+                    className="min-h-11 cursor-pointer rounded-lg bg-[#265c42] px-4 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65"
+                    disabled={confirmingMatchId === match.id}
+                    type="button"
+                    onClick={() => void confirmMatch(match.id)}
+                  >
+                    {confirmingMatchId === match.id
+                      ? "Bestätigt..."
+                      : "Ergebnis bestätigen"}
+                  </button>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function TeamSummary({ team }: { team?: MatchTeam }) {
+  if (!team) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-lg border border-[#e2e8df] bg-white p-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="font-extrabold">
+          Team {team.side}
+          {team.isWinner ? " · Sieger" : ""}
+        </span>
+        <span className="text-2xl font-extrabold">{team.score}</span>
+      </div>
+      <p className="m-0 mt-2 text-sm text-[#667064]">
+        {team.participants
+          .map((participant) => participant.tournamentParticipant.user.displayName)
+          .join(", ")}
+      </p>
+    </div>
+  );
+}
+
+function canUserConfirmMatch(match: MatchItem, currentUserId: string) {
+  if (
+    match.status !== "PENDING_CONFIRMATION" ||
+    match.createdByUserId === currentUserId
+  ) {
+    return false;
+  }
+
+  const submittingSide = findUserSide(match, match.createdByUserId);
+  const currentUserSide = findUserSide(match, currentUserId);
+
+  return Boolean(
+    submittingSide && currentUserSide && submittingSide !== currentUserSide
+  );
+}
+
+function findUserSide(match: MatchItem, userId: string) {
+  return (
+    match.teams.find((team) =>
+      team.participants.some(
+        (participant) => participant.tournamentParticipant.user.id === userId
+      )
+    )?.side ?? null
+  );
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("de-DE", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(new Date(value));
+}

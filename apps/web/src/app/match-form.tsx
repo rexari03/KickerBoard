@@ -98,7 +98,7 @@ export function MatchForm({
         teamA: emptyTeam(current.mode),
         teamB: emptyTeam(current.mode)
       }));
-      setMessage("Match gespeichert.");
+      setMessage("Ergebnis eingereicht. Der Gegner muss es noch bestätigen.");
       onMatchSaved?.();
     } catch (submitError) {
       setError(
@@ -144,8 +144,8 @@ export function MatchForm({
             <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">Match</p>
             <h2 className="m-0 text-2xl font-extrabold">Ergebnis erfassen</h2>
             <p className="m-0 max-w-2xl text-sm leading-6 text-[#667064]">
-              Wähle Modus, Teams und Punkte. Der Gewinner wird automatisch aus
-              dem Ergebnis berechnet.
+              Wähle Modus, Teams und Punkte. Du musst selbst mitgespielt haben;
+              ein Gegner bestätigt das Ergebnis danach.
             </p>
           </div>
 
@@ -221,7 +221,7 @@ export function MatchForm({
             disabled={isSubmitting}
             type="submit"
           >
-            {isSubmitting ? "Speichert..." : "Match speichern"}
+            {isSubmitting ? "Sendet..." : "Ergebnis einreichen"}
           </button>
         </div>
       </form>

@@ -8,6 +8,6 @@ export type TournamentStatus = "ACTIVE" | "ARCHIVED";
 
 export type TournamentParticipantRole = "PLAYER" | "MANAGER";
 
-export type MatchStatus = "COMPLETED" | "CANCELLED";
+export type MatchStatus = "PENDING_CONFIRMATION" | "COMPLETED" | "CANCELLED";
 
 export type TeamSide = "A" | "B";
