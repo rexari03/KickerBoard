@@ -130,8 +130,51 @@ Das initiale Prisma-Schema liegt unter `apps/api/prisma/schema.prisma`.
 Nach Installation der Dependencies und gestarteter PostgreSQL-Datenbank:
 
 ```bash
+cp apps/api/.env.example apps/api/.env
+docker compose up -d postgres
 npm run db:generate
 npm run db:migrate
 ```
 
 Das MVP-Ranking wird aus abgeschlossenen Matches berechnet. Primaere Sortierung ist die Siegquote, ergaenzt um eine Mindestanzahl an Spielen, Siege, Punktedifferenz und Anzahl gespielter Matches als Tie-Breaker.
+
+## API MVP
+
+Initiale Endpunkte:
+
+- `GET /health`
+- `GET /players`
+- `POST /players`
+- `GET /matches`
+- `POST /matches`
+- `GET /rankings`
+
+Beispiel fuer einen Spieler:
+
+```json
+{
+  "email": "spieler@example.com",
+  "displayName": "Spieler 1"
+}
+```
+
+Beispiel fuer ein 1v1-Match:
+
+```json
+{
+  "mode": "ONE_VS_ONE",
+  "createdByUserId": "user-id",
+  "teams": [
+    {
+      "side": "A",
+      "score": 10,
+      "playerIds": ["player-profile-id-a"]
+    },
+    {
+      "side": "B",
+      "score": 7,
+      "playerIds": ["player-profile-id-b"]
+    }
+  ]
+}
+```
