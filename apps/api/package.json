@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "auth:reset-password": "tsx src/scripts/reset-password.ts",
+    "auth:set-role": "tsx src/scripts/set-role.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",

@@ -155,6 +155,12 @@ Initiale Endpunkte:
 
 Die Authentifizierung nutzt serverseitige Sessions. Das Session-Token liegt im Browser als `HttpOnly`-Cookie, in der Datenbank wird nur der Hash des Tokens gespeichert.
 
+Einen bestehenden User zum Admin machen:
+
+```bash
+npm run auth:set-role --workspace @kicker-board/api -- user@example.com ADMIN
+```
+
 Nach Aenderungen am Auth-Schema:
 
 ```bash
@@ -176,7 +182,6 @@ Beispiel fuer ein 1v1-Match:
 ```json
 {
   "mode": "ONE_VS_ONE",
-  "createdByUserId": "user-id",
   "teams": [
     {
       "side": "A",

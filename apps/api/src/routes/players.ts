@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { requireAdminUser } from "../auth/guards.js";
 import { prisma } from "../prisma.js";
 
 type CreatePlayerBody = {
@@ -26,6 +27,12 @@ export async function registerPlayerRoutes(server: FastifyInstance) {
   });
 
   server.post<{ Body: CreatePlayerBody }>("/players", async (request, reply) => {
+    const admin = await requireAdminUser(request, reply);
+
+    if (!admin) {
+      return;
+    }
+
     const email = normalizeString(request.body.email);
     const displayName = normalizeString(request.body.displayName);
 
@@ -35,21 +42,27 @@ export async function registerPlayerRoutes(server: FastifyInstance) {
       });
     }
 
-    const player = await prisma.user.create({
-      data: {
-        email,
-        profile: {
-          create: {
-            displayName
+    try {
+      const player = await prisma.user.create({
+        data: {
+          email,
+          profile: {
+            create: {
+              displayName
+            }
           }
+        },
+        include: {
+          profile: true
         }
-      },
-      include: {
-        profile: true
-      }
-    });
+      });
 
-    return reply.code(201).send(player);
+      return reply.code(201).send(player);
+    } catch {
+      return reply.code(409).send({
+        error: "email or displayName already exists"
+      });
+    }
   });
 }
 

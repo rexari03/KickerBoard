@@ -1,11 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import type { MatchMode, TeamSide } from "@prisma/client";
+import { requireCurrentUser } from "../auth/guards.js";
 import { prisma } from "../prisma.js";
 
 type CreateMatchBody = {
   mode?: unknown;
   playedAt?: unknown;
-  createdByUserId?: unknown;
   seasonId?: unknown;
   teams?: unknown;
 };
@@ -47,6 +47,12 @@ export async function registerMatchRoutes(server: FastifyInstance) {
   });
 
   server.post<{ Body: CreateMatchBody }>("/matches", async (request, reply) => {
+    const user = await requireCurrentUser(request, reply);
+
+    if (!user) {
+      return;
+    }
+
     const validation = validateCreateMatch(request.body);
 
     if (!validation.ok) {
@@ -55,7 +61,7 @@ export async function registerMatchRoutes(server: FastifyInstance) {
       });
     }
 
-    const { createdByUserId, mode, playedAt, seasonId, teams } = validation.data;
+    const { mode, playedAt, seasonId, teams } = validation.data;
 
     const existingPlayers = await prisma.playerProfile.findMany({
       where: {
@@ -81,26 +87,28 @@ export async function registerMatchRoutes(server: FastifyInstance) {
       });
     }
 
-    const createdBy = await prisma.user.findUnique({
-      where: {
-        id: createdByUserId
-      },
-      select: {
-        id: true
-      }
-    });
-
-    if (!createdBy) {
-      return reply.code(400).send({
-        error: "createdByUserId must reference an existing user"
+    if (seasonId) {
+      const season = await prisma.season.findUnique({
+        where: {
+          id: seasonId
+        },
+        select: {
+          id: true
+        }
       });
+
+      if (!season) {
+        return reply.code(400).send({
+          error: "seasonId must reference an existing season"
+        });
+      }
     }
 
     const match = await prisma.match.create({
       data: {
         mode,
         playedAt,
-        createdByUserId,
+        createdByUserId: user.id,
         seasonId,
         teams: {
           create: teams.map((team) => ({
@@ -141,23 +149,17 @@ function validateCreateMatch(body: CreateMatchBody):
       data: {
         mode: MatchMode;
         playedAt: Date;
-        createdByUserId: string;
         seasonId?: string;
         teams: ParsedTeam[];
       };
     }
   | { ok: false; error: string } {
   const mode = parseMatchMode(body.mode);
-  const createdByUserId = normalizeString(body.createdByUserId);
   const seasonId = normalizeString(body.seasonId);
   const playedAt = parseDate(body.playedAt);
 
   if (!mode) {
     return { ok: false, error: "mode must be ONE_VS_ONE or TWO_VS_TWO" };
-  }
-
-  if (!createdByUserId) {
-    return { ok: false, error: "createdByUserId is required" };
   }
 
   if (!playedAt) {
@@ -199,7 +201,7 @@ function validateCreateMatch(body: CreateMatchBody):
     return { ok: false, error: "a player can only participate once per match" };
   }
 
-  const [teamA, teamB] = teams.sort((left, right) =>
+  const [teamA, teamB] = [...teams].sort((left, right) =>
     left.side.localeCompare(right.side)
   );
 
@@ -218,7 +220,6 @@ function validateCreateMatch(body: CreateMatchBody):
     data: {
       mode,
       playedAt,
-      createdByUserId,
       ...(seasonId ? { seasonId } : {}),
       teams: teamsWithWinner
     }
