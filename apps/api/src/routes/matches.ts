@@ -3,10 +3,13 @@ import type { MatchMode, TeamSide } from "@prisma/client";
 import { requireCurrentUser } from "../auth/guards.js";
 import { prisma } from "../prisma.js";
 
+type TournamentParams = {
+  tournamentId: string;
+};
+
 type CreateMatchBody = {
   mode?: unknown;
   playedAt?: unknown;
-  seasonId?: unknown;
   teams?: unknown;
 };
 
@@ -14,132 +17,187 @@ type ParsedTeam = {
   side: TeamSide;
   score: number;
   isWinner: boolean;
-  playerIds: string[];
+  participantIds: string[];
 };
 
 export async function registerMatchRoutes(server: FastifyInstance) {
-  server.get("/matches", async () => {
-    return prisma.match.findMany({
-      orderBy: {
-        playedAt: "desc"
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            email: true
-          }
+  server.get<{ Params: TournamentParams }>(
+    "/tournaments/:tournamentId/matches",
+    async (request, reply) => {
+      const user = await requireCurrentUser(request, reply);
+
+      if (!user) {
+        return;
+      }
+
+      const membership = await findTournamentMembership(
+        request.params.tournamentId,
+        user.id
+      );
+
+      if (!membership) {
+        return reply.code(403).send({
+          error: "tournament membership required"
+        });
+      }
+
+      return prisma.match.findMany({
+        where: {
+          tournamentId: request.params.tournamentId
         },
-        teams: {
-          orderBy: {
-            side: "asc"
+        orderBy: {
+          playedAt: "desc"
+        },
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              displayName: true
+            }
           },
-          include: {
-            participants: {
-              include: {
-                player: true
+          teams: {
+            orderBy: {
+              side: "asc"
+            },
+            include: {
+              participants: {
+                include: {
+                  tournamentParticipant: {
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          displayName: true
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
         }
-      }
-    });
-  });
-
-  server.post<{ Body: CreateMatchBody }>("/matches", async (request, reply) => {
-    const user = await requireCurrentUser(request, reply);
-
-    if (!user) {
-      return;
-    }
-
-    const validation = validateCreateMatch(request.body);
-
-    if (!validation.ok) {
-      return reply.code(400).send({
-        error: validation.error
       });
     }
+  );
 
-    const { mode, playedAt, seasonId, teams } = validation.data;
+  server.post<{ Params: TournamentParams; Body: CreateMatchBody }>(
+    "/tournaments/:tournamentId/matches",
+    async (request, reply) => {
+      const user = await requireCurrentUser(request, reply);
 
-    const existingPlayers = await prisma.playerProfile.findMany({
-      where: {
-        id: {
-          in: teams.flatMap((team) => team.playerIds)
-        },
-        isActive: true
-      },
-      select: {
-        id: true
+      if (!user) {
+        return;
       }
-    });
 
-    const existingPlayerIds = new Set(existingPlayers.map((player) => player.id));
-    const missingPlayerIds = teams
-      .flatMap((team) => team.playerIds)
-      .filter((playerId) => !existingPlayerIds.has(playerId));
+      const membership = await findTournamentMembership(
+        request.params.tournamentId,
+        user.id
+      );
 
-    if (missingPlayerIds.length > 0) {
-      return reply.code(400).send({
-        error: "all players must exist and be active",
-        missingPlayerIds
-      });
-    }
+      if (!membership) {
+        return reply.code(403).send({
+          error: "tournament membership required"
+        });
+      }
 
-    if (seasonId) {
-      const season = await prisma.season.findUnique({
+      const validation = validateCreateMatch(request.body);
+
+      if (!validation.ok) {
+        return reply.code(400).send({
+          error: validation.error
+        });
+      }
+
+      const { mode, playedAt, teams } = validation.data;
+      const participantIds = teams.flatMap((team) => team.participantIds);
+
+      const existingParticipants = await prisma.tournamentParticipant.findMany({
         where: {
-          id: seasonId
+          id: {
+            in: participantIds
+          },
+          tournamentId: request.params.tournamentId
         },
         select: {
           id: true
         }
       });
 
-      if (!season) {
+      const existingParticipantIds = new Set(
+        existingParticipants.map((participant) => participant.id)
+      );
+      const missingParticipantIds = participantIds.filter(
+        (participantId) => !existingParticipantIds.has(participantId)
+      );
+
+      if (missingParticipantIds.length > 0) {
         return reply.code(400).send({
-          error: "seasonId must reference an existing season"
+          error: "all participants must belong to this tournament",
+          missingParticipantIds
         });
       }
-    }
 
-    const match = await prisma.match.create({
-      data: {
-        mode,
-        playedAt,
-        createdByUserId: user.id,
-        seasonId,
-        teams: {
-          create: teams.map((team) => ({
-            side: team.side,
-            score: team.score,
-            isWinner: team.isWinner,
-            participants: {
-              create: team.playerIds.map((playerId) => ({
-                playerId
-              }))
-            }
-          }))
-        }
-      },
-      include: {
-        teams: {
-          orderBy: {
-            side: "asc"
-          },
-          include: {
-            participants: {
-              include: {
-                player: true
+      const match = await prisma.match.create({
+        data: {
+          tournamentId: request.params.tournamentId,
+          mode,
+          playedAt,
+          createdByUserId: user.id,
+          teams: {
+            create: teams.map((team) => ({
+              side: team.side,
+              score: team.score,
+              isWinner: team.isWinner,
+              participants: {
+                create: team.participantIds.map((tournamentParticipantId) => ({
+                  tournamentParticipantId
+                }))
+              }
+            }))
+          }
+        },
+        include: {
+          teams: {
+            orderBy: {
+              side: "asc"
+            },
+            include: {
+              participants: {
+                include: {
+                  tournamentParticipant: {
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          displayName: true
+                        }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
         }
-      }
-    });
+      });
 
-    return reply.code(201).send(match);
+      return reply.code(201).send(match);
+    }
+  );
+}
+
+async function findTournamentMembership(tournamentId: string, userId: string) {
+  return prisma.tournamentParticipant.findUnique({
+    where: {
+      tournamentId_userId: {
+        tournamentId,
+        userId
+      }
+    },
+    select: {
+      id: true
+    }
   });
 }
 
@@ -149,13 +207,11 @@ function validateCreateMatch(body: CreateMatchBody):
       data: {
         mode: MatchMode;
         playedAt: Date;
-        seasonId?: string;
         teams: ParsedTeam[];
       };
     }
   | { ok: false; error: string } {
   const mode = parseMatchMode(body.mode);
-  const seasonId = normalizeString(body.seasonId);
   const playedAt = parseDate(body.playedAt);
 
   if (!mode) {
@@ -175,7 +231,7 @@ function validateCreateMatch(body: CreateMatchBody):
   if (parsedTeams.some((team) => !team)) {
     return {
       ok: false,
-      error: "each team requires side, score and playerIds"
+      error: "each team requires side, score and participantIds"
     };
   }
 
@@ -188,17 +244,17 @@ function validateCreateMatch(body: CreateMatchBody):
 
   const expectedPlayersPerTeam = mode === "ONE_VS_ONE" ? 1 : 2;
 
-  if (teams.some((team) => team.playerIds.length !== expectedPlayersPerTeam)) {
+  if (teams.some((team) => team.participantIds.length !== expectedPlayersPerTeam)) {
     return {
       ok: false,
-      error: `${mode} requires ${expectedPlayersPerTeam} player(s) per team`
+      error: `${mode} requires ${expectedPlayersPerTeam} participant(s) per team`
     };
   }
 
-  const playerIds = teams.flatMap((team) => team.playerIds);
+  const participantIds = teams.flatMap((team) => team.participantIds);
 
-  if (new Set(playerIds).size !== playerIds.length) {
-    return { ok: false, error: "a player can only participate once per match" };
+  if (new Set(participantIds).size !== participantIds.length) {
+    return { ok: false, error: "a participant can only play once per match" };
   }
 
   const [teamA, teamB] = [...teams].sort((left, right) =>
@@ -220,7 +276,6 @@ function validateCreateMatch(body: CreateMatchBody):
     data: {
       mode,
       playedAt,
-      ...(seasonId ? { seasonId } : {}),
       teams: teamsWithWinner
     }
   };
@@ -233,9 +288,9 @@ function parseTeam(value: unknown): ParsedTeam | null {
 
   const side = parseTeamSide(value.side);
   const score = parseScore(value.score);
-  const playerIds = parsePlayerIds(value.playerIds);
+  const participantIds = parseStringArray(value.participantIds);
 
-  if (!side || score === null || !playerIds) {
+  if (!side || score === null || !participantIds) {
     return null;
   }
 
@@ -243,7 +298,7 @@ function parseTeam(value: unknown): ParsedTeam | null {
     side,
     score,
     isWinner: false,
-    playerIds
+    participantIds
   };
 }
 
@@ -261,16 +316,16 @@ function parseScore(value: unknown) {
     : null;
 }
 
-function parsePlayerIds(value: unknown) {
+function parseStringArray(value: unknown) {
   if (!Array.isArray(value)) {
     return null;
   }
 
-  const playerIds = value
+  const strings = value
     .map(normalizeString)
-    .filter((playerId): playerId is string => Boolean(playerId));
+    .filter((item): item is string => Boolean(item));
 
-  return playerIds.length === value.length ? playerIds : null;
+  return strings.length === value.length ? strings : null;
 }
 
 function parseDate(value: unknown) {

@@ -66,11 +66,7 @@ export async function getCurrentSession(request: FastifyRequest) {
       }
     },
     include: {
-      user: {
-        include: {
-          profile: true
-        }
-      }
+      user: true
     }
   });
 }

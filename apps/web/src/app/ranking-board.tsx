@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 type RankingMode = "OVERALL" | "ONE_VS_ONE" | "TWO_VS_TWO";
 
 type RankingRow = {
-  playerId: string;
+  participantId: string;
+  userId: string;
   displayName: string;
   gamesPlayed: number;
   wins: number;
@@ -25,6 +26,7 @@ type RankingResponse = {
 
 type RankingBoardProps = {
   refreshKey: number;
+  tournamentId: string;
 };
 
 const modes: Array<{ label: string; value: RankingMode }> = [
@@ -33,7 +35,7 @@ const modes: Array<{ label: string; value: RankingMode }> = [
   { label: "2v2", value: "TWO_VS_TWO" }
 ];
 
-export function RankingBoard({ refreshKey }: RankingBoardProps) {
+export function RankingBoard({ refreshKey, tournamentId }: RankingBoardProps) {
   const [ranking, setRanking] = useState<RankingResponse | null>(null);
   const [mode, setMode] = useState<RankingMode>("OVERALL");
   const [isLoading, setIsLoading] = useState(true);
@@ -61,7 +63,12 @@ export function RankingBoard({ refreshKey }: RankingBoardProps) {
         params.set("mode", mode);
       }
 
-      const response = await fetch(`${apiUrl}/rankings?${params.toString()}`);
+      const response = await fetch(
+        `${apiUrl}/tournaments/${tournamentId}/rankings?${params.toString()}`,
+        {
+          credentials: "include"
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Ranking konnte nicht geladen werden.");
@@ -170,7 +177,7 @@ export function RankingBoard({ refreshKey }: RankingBoardProps) {
                     className={`rounded-lg ${
                       row.isQualified ? "bg-[#fbfcfa]" : "bg-[#f3f5f1]"
                     }`}
-                    key={row.playerId}
+                    key={row.participantId}
                   >
                     <td className="rounded-l-lg px-3 py-3 font-extrabold">
                       #{index + 1}

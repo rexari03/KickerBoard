@@ -5,7 +5,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 export type AuthUser = {
   id: string;
   email: string;
-  role: "PLAYER" | "ADMIN";
+  displayName: string;
+  role: "USER" | "ADMIN";
   profile: {
     id: string;
     displayName: string;
@@ -115,9 +116,7 @@ export function AuthPanel({ onAuthChange }: AuthPanelProps) {
       >
         <div className="grid gap-1.5">
           <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">Session</p>
-          <h2 className="m-0 text-xl font-bold">
-            {user.profile?.displayName ?? user.email}
-          </h2>
+          <h2 className="m-0 text-xl font-bold">{user.displayName}</h2>
         </div>
         <p className="m-0 text-[#667064]">{user.email}</p>
         <button

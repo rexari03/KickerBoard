@@ -1,6 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import type { MatchMode } from "@prisma/client";
+import { requireCurrentUser } from "../auth/guards.js";
 import { prisma } from "../prisma.js";
+
+type TournamentParams = {
+  tournamentId: string;
+};
 
 type RankingQuery = {
   minMatches?: string;
@@ -8,7 +13,8 @@ type RankingQuery = {
 };
 
 type RankingRow = {
-  playerId: string;
+  participantId: string;
+  userId: string;
   displayName: string;
   gamesPlayed: number;
   wins: number;
@@ -21,113 +27,146 @@ type RankingRow = {
 };
 
 export async function registerRankingRoutes(server: FastifyInstance) {
-  server.get<{ Querystring: RankingQuery }>("/rankings", async (request, reply) => {
-    const minMatches = parseMinMatches(request.query.minMatches);
-    const mode = parseMatchMode(request.query.mode);
+  server.get<{ Params: TournamentParams; Querystring: RankingQuery }>(
+    "/tournaments/:tournamentId/rankings",
+    async (request, reply) => {
+      const user = await requireCurrentUser(request, reply);
 
-    if (request.query.mode && !mode) {
-      return reply.code(400).send({
-        error: "mode must be ONE_VS_ONE or TWO_VS_TWO when provided"
-      });
-    }
+      if (!user) {
+        return;
+      }
 
-    const [players, matches] = await Promise.all([
-      prisma.playerProfile.findMany({
+      const membership = await prisma.tournamentParticipant.findUnique({
         where: {
-          isActive: true
-        },
-        orderBy: {
-          displayName: "asc"
+          tournamentId_userId: {
+            tournamentId: request.params.tournamentId,
+            userId: user.id
+          }
         },
         select: {
-          id: true,
-          displayName: true
+          id: true
         }
-      }),
-      prisma.match.findMany({
-        where: {
-          status: "COMPLETED",
-          ...(mode ? { mode } : {})
-        },
-        include: {
-          teams: {
-            include: {
-              participants: true
+      });
+
+      if (!membership) {
+        return reply.code(403).send({
+          error: "tournament membership required"
+        });
+      }
+
+      const minMatches = parseMinMatches(request.query.minMatches);
+      const mode = parseMatchMode(request.query.mode);
+
+      if (request.query.mode && !mode) {
+        return reply.code(400).send({
+          error: "mode must be ONE_VS_ONE or TWO_VS_TWO when provided"
+        });
+      }
+
+      const [participants, matches] = await Promise.all([
+        prisma.tournamentParticipant.findMany({
+          where: {
+            tournamentId: request.params.tournamentId
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                displayName: true
+              }
+            }
+          },
+          orderBy: {
+            joinedAt: "asc"
+          }
+        }),
+        prisma.match.findMany({
+          where: {
+            tournamentId: request.params.tournamentId,
+            status: "COMPLETED",
+            ...(mode ? { mode } : {})
+          },
+          include: {
+            teams: {
+              include: {
+                participants: true
+              }
             }
           }
+        })
+      ]);
+
+      const rows = new Map<string, RankingRow>();
+
+      for (const participant of participants) {
+        rows.set(participant.id, {
+          participantId: participant.id,
+          userId: participant.user.id,
+          displayName: participant.user.displayName,
+          gamesPlayed: 0,
+          wins: 0,
+          losses: 0,
+          pointsFor: 0,
+          pointsAgainst: 0,
+          pointDifference: 0,
+          winRate: 0,
+          isQualified: false
+        });
+      }
+
+      for (const match of matches) {
+        const teams = match.teams;
+
+        if (teams.length !== 2) {
+          continue;
         }
-      })
-    ]);
 
-    const rows = new Map<string, RankingRow>();
+        const [firstTeam, secondTeam] = teams;
 
-    for (const player of players) {
-      rows.set(player.id, {
-        playerId: player.id,
-        displayName: player.displayName,
-        gamesPlayed: 0,
-        wins: 0,
-        losses: 0,
-        pointsFor: 0,
-        pointsAgainst: 0,
-        pointDifference: 0,
-        winRate: 0,
-        isQualified: false
-      });
-    }
+        if (!firstTeam || !secondTeam) {
+          continue;
+        }
 
-    for (const match of matches) {
-      const teams = match.teams;
+        for (const team of teams) {
+          const opponent = team.id === firstTeam.id ? secondTeam : firstTeam;
 
-      if (teams.length !== 2) {
-        continue;
-      }
+          for (const participant of team.participants) {
+            const row = rows.get(participant.tournamentParticipantId);
 
-      const [firstTeam, secondTeam] = teams;
+            if (!row) {
+              continue;
+            }
 
-      if (!firstTeam || !secondTeam) {
-        continue;
-      }
-
-      for (const team of teams) {
-        const opponent = team.id === firstTeam.id ? secondTeam : firstTeam;
-
-        for (const participant of team.participants) {
-          const row = rows.get(participant.playerId);
-
-          if (!row) {
-            continue;
+            row.gamesPlayed += 1;
+            row.wins += team.isWinner ? 1 : 0;
+            row.losses += team.isWinner ? 0 : 1;
+            row.pointsFor += team.score;
+            row.pointsAgainst += opponent.score;
           }
-
-          row.gamesPlayed += 1;
-          row.wins += team.isWinner ? 1 : 0;
-          row.losses += team.isWinner ? 0 : 1;
-          row.pointsFor += team.score;
-          row.pointsAgainst += opponent.score;
         }
       }
+
+      const ranking = [...rows.values()]
+        .map((row) => {
+          const winRate = row.gamesPlayed > 0 ? row.wins / row.gamesPlayed : 0;
+          const pointDifference = row.pointsFor - row.pointsAgainst;
+
+          return {
+            ...row,
+            pointDifference,
+            winRate,
+            isQualified: row.gamesPlayed >= minMatches
+          };
+        })
+        .sort(compareRankingRows);
+
+      return {
+        minMatches,
+        mode: mode ?? "OVERALL",
+        rows: ranking
+      };
     }
-
-    const ranking = [...rows.values()]
-      .map((row) => {
-        const winRate = row.gamesPlayed > 0 ? row.wins / row.gamesPlayed : 0;
-        const pointDifference = row.pointsFor - row.pointsAgainst;
-
-        return {
-          ...row,
-          pointDifference,
-          winRate,
-          isQualified: row.gamesPlayed >= minMatches
-        };
-      })
-      .sort(compareRankingRows);
-
-    return {
-      minMatches,
-      mode: mode ?? "OVERALL",
-      rows: ranking
-    };
-  });
+  );
 }
 
 function compareRankingRows(left: RankingRow, right: RankingRow) {

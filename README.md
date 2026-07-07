@@ -4,7 +4,7 @@ Intelligentes Scoreboard zum Erfassen, Auswerten und Vergleichen von Kicker-Erge
 
 ## Produktziel
 
-KickerBoard soll Spielern erlauben, sich mit eigenen Login-Daten anzumelden, Spiele einzutragen und Rankings sowie persönliche Statistiken einzusehen. Admins sollen Spieler verwalten und fehlerhafte Ergebnisse korrigieren koennen.
+KickerBoard soll Spielern erlauben, sich selbst zu registrieren, Turniere zu erstellen, Turnieren per Passwort beizutreten und innerhalb eines Turniers Matches sowie Rankings zu verwalten. Globale Admins verwalten Accounts und Turniere.
 
 ## Architekturentscheidung
 
@@ -37,16 +37,17 @@ Fastify passt gut, wenn das Backend schlank bleiben soll: Auth, Spieler, Matches
 
 - Login
 - Eigenes Spielerprofil
-- Match erfassen
-- Match-Historie ansehen
-- Ranking ansehen
-- Persoenliche Statistiken ansehen
+- Turnier erstellen
+- Turnier per Passwort beitreten
+- Match im Turnier erfassen
+- Turnier-Ranking ansehen
+- Match-Historie im Turnier ansehen
 
 ### Admin-Funktionen
 
-- Spieler anlegen, bearbeiten und deaktivieren
+- Accounts verwalten
+- Turniere verwalten
 - Ergebnisse korrigieren oder loeschen
-- Spielmodi konfigurieren
 
 ### Spielmodi
 
@@ -68,7 +69,7 @@ Spaetere Erweiterung:
 
 - Elo-Rating fuer 1v1
 - angepasstes Team-Rating fuer 2v2
-- saisonale Rankings
+- Turnier-Rankings
 - Formkurve und Serien
 
 ## Datenmodell
@@ -76,11 +77,11 @@ Spaetere Erweiterung:
 Voraussichtliche Kern-Entities:
 
 - User
-- PlayerProfile
+- Tournament
+- TournamentParticipant
 - Match
+- MatchTeam
 - MatchParticipant
-- Season
-- RatingSnapshot
 - AuditLog
 
 ## Deployment-Ziel
@@ -136,7 +137,7 @@ npm run db:generate
 npm run db:migrate
 ```
 
-Das MVP-Ranking wird aus abgeschlossenen Matches berechnet. Primaere Sortierung ist die Siegquote, ergaenzt um eine Mindestanzahl an Spielen, Siege, Punktedifferenz und Anzahl gespielter Matches als Tie-Breaker.
+Das MVP-Ranking wird pro Turnier aus abgeschlossenen Matches berechnet. Primaere Sortierung ist die Siegquote, ergaenzt um eine Mindestanzahl an Spielen, Siege, Punktedifferenz und Anzahl gespielter Matches als Tie-Breaker.
 
 ## API MVP
 
@@ -147,11 +148,14 @@ Initiale Endpunkte:
 - `POST /auth/login`
 - `GET /auth/me`
 - `POST /auth/logout`
-- `GET /players`
-- `POST /players`
-- `GET /matches`
-- `POST /matches`
-- `GET /rankings`
+- `GET /tournaments`
+- `POST /tournaments`
+- `GET /tournaments/:tournamentId`
+- `POST /tournaments/:tournamentId/join`
+- `GET /tournaments/:tournamentId/matches`
+- `POST /tournaments/:tournamentId/matches`
+- `GET /tournaments/:tournamentId/rankings`
+- `GET /admin/users`
 
 Die Authentifizierung nutzt serverseitige Sessions. Das Session-Token liegt im Browser als `HttpOnly`-Cookie, in der Datenbank wird nur der Hash des Tokens gespeichert.
 
@@ -168,12 +172,22 @@ cd apps/api
 npx prisma migrate dev --name add_auth_sessions
 ```
 
-Beispiel fuer einen Spieler:
+Beispiel fuer eine Registrierung:
 
 ```json
 {
   "email": "spieler@example.com",
+  "password": "mindestens12",
   "displayName": "Spieler 1"
+}
+```
+
+Beispiel fuer ein Turnier:
+
+```json
+{
+  "name": "Freitag Kicker",
+  "password": "turnierpasswort"
 }
 ```
 
@@ -186,12 +200,12 @@ Beispiel fuer ein 1v1-Match:
     {
       "side": "A",
       "score": 10,
-      "playerIds": ["player-profile-id-a"]
+      "participantIds": ["tournament-participant-id-a"]
     },
     {
       "side": "B",
       "score": 7,
-      "playerIds": ["player-profile-id-b"]
+      "participantIds": ["tournament-participant-id-b"]
     }
   ]
 }

@@ -8,7 +8,7 @@ const role = parseRole(rawRole);
 
 if (!email || !role) {
   console.error(
-    "Usage: npm run auth:set-role --workspace @kicker-board/api -- <email> <PLAYER|ADMIN>"
+    "Usage: npm run auth:set-role --workspace @kicker-board/api -- <email> <USER|ADMIN>"
   );
   process.exit(1);
 }
@@ -36,7 +36,7 @@ try {
 }
 
 function parseRole(value: string | undefined): UserRole | null {
-  if (value === "PLAYER" || value === "ADMIN") {
+  if (value === "USER" || value === "ADMIN") {
     return value;
   }
 

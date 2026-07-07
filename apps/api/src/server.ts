@@ -7,6 +7,7 @@ import { registerAuthRoutes } from "./routes/auth.js";
 import { registerMatchRoutes } from "./routes/matches.js";
 import { registerPlayerRoutes } from "./routes/players.js";
 import { registerRankingRoutes } from "./routes/rankings.js";
+import { registerTournamentRoutes } from "./routes/tournaments.js";
 
 const server = Fastify({
   logger: true
@@ -29,6 +30,7 @@ server.get("/health", async () => {
 });
 
 await server.register(registerAuthRoutes);
+await server.register(registerTournamentRoutes);
 await server.register(registerPlayerRoutes);
 await server.register(registerMatchRoutes);
 await server.register(registerRankingRoutes);

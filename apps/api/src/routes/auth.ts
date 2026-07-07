@@ -33,15 +33,8 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       const user = await prisma.user.create({
         data: {
           email,
-          passwordHash,
-          profile: {
-            create: {
-              displayName
-            }
-          }
-        },
-        include: {
-          profile: true
+          displayName,
+          passwordHash
         }
       });
 
@@ -51,7 +44,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
       return reply.code(201).send(toAuthUser(user));
     } catch {
       return reply.code(409).send({
-        error: "email or displayName already exists"
+        error: "email already exists"
       });
     }
   });
@@ -69,9 +62,6 @@ export async function registerAuthRoutes(server: FastifyInstance) {
     const user = await prisma.user.findUnique({
       where: {
         email
-      },
-      include: {
-        profile: true
       }
     });
 
@@ -120,18 +110,19 @@ export async function registerAuthRoutes(server: FastifyInstance) {
 function toAuthUser(user: {
   id: string;
   email: string;
-  role: "PLAYER" | "ADMIN";
-  profile: {
-    id: string;
-    displayName: string;
-    avatarUrl: string | null;
-  } | null;
+  displayName: string;
+  role: "USER" | "ADMIN";
 }) {
   return {
     id: user.id,
     email: user.email,
+    displayName: user.displayName,
     role: user.role,
-    profile: user.profile
+    profile: {
+      id: user.id,
+      displayName: user.displayName,
+      avatarUrl: null
+    }
   };
 }
 

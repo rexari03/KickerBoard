@@ -1,18 +1,10 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import type { TournamentParticipant } from "./tournament-dashboard";
 
 type MatchMode = "ONE_VS_ONE" | "TWO_VS_TWO";
 type TeamSide = "A" | "B";
-
-type Player = {
-  id: string;
-  displayName: string;
-  isActive: boolean;
-  user: {
-    email: string;
-  };
-};
 
 type MatchFormState = {
   mode: MatchMode;
@@ -31,13 +23,17 @@ const initialState: MatchFormState = {
 };
 
 type MatchFormProps = {
+  participants: TournamentParticipant[];
+  tournamentId: string;
   onMatchSaved?: () => void;
 };
 
-export function MatchForm({ onMatchSaved }: MatchFormProps) {
-  const [players, setPlayers] = useState<Player[]>([]);
+export function MatchForm({
+  participants,
+  tournamentId,
+  onMatchSaved
+}: MatchFormProps) {
   const [form, setForm] = useState<MatchFormState>(initialState);
-  const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,34 +45,6 @@ export function MatchForm({ onMatchSaved }: MatchFormProps) {
 
   const playersPerTeam = form.mode === "ONE_VS_ONE" ? 1 : 2;
   const selectedPlayerIds = [...form.teamA, ...form.teamB].filter(Boolean);
-
-  useEffect(() => {
-    void loadPlayers();
-  }, []);
-
-  async function loadPlayers() {
-    setIsLoadingPlayers(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`${apiUrl}/players`);
-
-      if (!response.ok) {
-        throw new Error("Spieler konnten nicht geladen werden.");
-      }
-
-      const nextPlayers = (await response.json()) as Player[];
-      setPlayers(nextPlayers.filter((player) => player.isActive));
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : "Spieler konnten nicht geladen werden."
-      );
-    } finally {
-      setIsLoadingPlayers(false);
-    }
-  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -93,7 +61,7 @@ export function MatchForm({ onMatchSaved }: MatchFormProps) {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${apiUrl}/matches`, {
+      const response = await fetch(`${apiUrl}/tournaments/${tournamentId}/matches`, {
         method: "POST",
         credentials: "include",
         headers: {
@@ -105,12 +73,12 @@ export function MatchForm({ onMatchSaved }: MatchFormProps) {
             {
               side: "A",
               score: Number(form.scoreA),
-              playerIds: form.teamA
+              participantIds: form.teamA
             },
             {
               side: "B",
               score: Number(form.scoreB),
-              playerIds: form.teamB
+              participantIds: form.teamB
             }
           ]
         })
@@ -213,7 +181,7 @@ export function MatchForm({ onMatchSaved }: MatchFormProps) {
             side="A"
             score={form.scoreA}
             selectedPlayerIds={selectedPlayerIds}
-            players={players}
+            participants={participants}
             team={form.teamA}
             onScoreChange={(score) =>
               setForm((current) => ({ ...current, scoreA: score }))
@@ -230,7 +198,7 @@ export function MatchForm({ onMatchSaved }: MatchFormProps) {
             side="B"
             score={form.scoreB}
             selectedPlayerIds={selectedPlayerIds}
-            players={players}
+            participants={participants}
             team={form.teamB}
             onScoreChange={(score) =>
               setForm((current) => ({ ...current, scoreB: score }))
@@ -241,20 +209,16 @@ export function MatchForm({ onMatchSaved }: MatchFormProps) {
 
         <div className="flex flex-col gap-3 border-t border-[#e2e8df] pt-5 md:flex-row md:items-center md:justify-between">
           <div>
-            {isLoadingPlayers ? (
-              <p className="m-0 text-sm text-[#667064]">Spieler werden geladen...</p>
-            ) : (
-              <p className="m-0 text-sm text-[#667064]">
-                {players.length} aktive Spieler verfügbar
-              </p>
-            )}
+            <p className="m-0 text-sm text-[#667064]">
+              {participants.length} Turnierteilnehmer verfügbar
+            </p>
             {message ? <p className="m-0 mt-1 font-bold text-[#2f6f4e]">{message}</p> : null}
             {error ? <p className="m-0 mt-1 font-bold text-[#9f2f24]">{error}</p> : null}
           </div>
 
           <button
             className="min-h-11 cursor-pointer rounded-lg bg-[#265c42] px-5 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65"
-            disabled={isSubmitting || isLoadingPlayers}
+            disabled={isSubmitting}
             type="submit"
           >
             {isSubmitting ? "Speichert..." : "Match speichern"}
@@ -270,7 +234,7 @@ type TeamCardProps = {
   side: TeamSide;
   score: string;
   selectedPlayerIds: string[];
-  players: Player[];
+  participants: TournamentParticipant[];
   team: string[];
   onScoreChange: (score: string) => void;
   onPlayerChange: (side: TeamSide, index: number, playerId: string) => void;
@@ -281,7 +245,7 @@ function TeamCard({
   side,
   score,
   selectedPlayerIds,
-  players,
+  participants,
   team,
   onScoreChange,
   onPlayerChange
@@ -315,17 +279,18 @@ function TeamCard({
               onChange={(event) => onPlayerChange(side, index, event.target.value)}
             >
               <option value="">Spieler wählen</option>
-              {players.map((player) => {
+              {participants.map((participant) => {
                 const isSelectedElsewhere =
-                  selectedPlayerIds.includes(player.id) && player.id !== playerId;
+                  selectedPlayerIds.includes(participant.id) &&
+                  participant.id !== playerId;
 
                 return (
                   <option
                     disabled={isSelectedElsewhere}
-                    key={player.id}
-                    value={player.id}
+                    key={participant.id}
+                    value={participant.id}
                   >
-                    {player.displayName}
+                    {participant.user.displayName}
                   </option>
                 );
               })}
