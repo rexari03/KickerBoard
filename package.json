@@ -1,0 +1,17 @@
+{
+  "name": "kicker-board",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @kicker-board/web --filter @kicker-board/api dev",
+    "dev:web": "pnpm --filter @kicker-board/web dev",
+    "dev:api": "pnpm --filter @kicker-board/api dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
