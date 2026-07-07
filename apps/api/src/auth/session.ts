@@ -7,6 +7,11 @@ export const sessionCookieName =
 
 const ttlDays = Number(process.env.SESSION_TTL_DAYS ?? 14);
 const ttlMs = ttlDays * 24 * 60 * 60 * 1000;
+const isProduction = process.env.NODE_ENV === "production";
+const sameSite = process.env.SESSION_COOKIE_SAME_SITE ?? (isProduction ? "none" : "lax");
+const secureCookie = process.env.SESSION_COOKIE_SECURE
+  ? process.env.SESSION_COOKIE_SECURE === "true"
+  : isProduction;
 
 export function createSessionToken() {
   return randomBytes(32).toString("base64url");
@@ -19,8 +24,8 @@ export function hashSessionToken(token: string) {
 export function setSessionCookie(reply: FastifyReply, token: string) {
   reply.setCookie(sessionCookieName, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    secure: secureCookie,
+    sameSite: sameSite as "lax" | "none" | "strict",
     path: "/",
     maxAge: Math.floor(ttlMs / 1000)
   });
@@ -28,6 +33,8 @@ export function setSessionCookie(reply: FastifyReply, token: string) {
 
 export function clearSessionCookie(reply: FastifyReply) {
   reply.clearCookie(sessionCookieName, {
+    secure: secureCookie,
+    sameSite: sameSite as "lax" | "none" | "strict",
     path: "/"
   });
 }
