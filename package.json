@@ -13,7 +13,10 @@
     "dev:api": "npm run dev --workspace @kicker-board/api",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace @kicker-board/api",
+    "db:migrate": "npm run db:migrate --workspace @kicker-board/api",
+    "db:studio": "npm run db:studio --workspace @kicker-board/api"
   },
   "devDependencies": {
     "typescript": "^5.5.4"

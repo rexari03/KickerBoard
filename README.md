@@ -122,3 +122,16 @@ npm run dev:web
 ```
 
 Die API stellt initial `GET /health` bereit.
+
+## Datenbank
+
+Das initiale Prisma-Schema liegt unter `apps/api/prisma/schema.prisma`.
+
+Nach Installation der Dependencies und gestarteter PostgreSQL-Datenbank:
+
+```bash
+npm run db:generate
+npm run db:migrate
+```
+
+Das MVP-Ranking wird aus abgeschlossenen Matches berechnet. Primaere Sortierung ist die Siegquote, ergaenzt um eine Mindestanzahl an Spielen, Siege, Punktedifferenz und Anzahl gespielter Matches als Tie-Breaker.

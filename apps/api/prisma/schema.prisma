@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PLAYER
+  ADMIN
+}
+
+enum MatchMode {
+  ONE_VS_ONE
+  TWO_VS_TWO
+}
+
+enum MatchStatus {
+  COMPLETED
+  CANCELLED
+}
+
+enum TeamSide {
+  A
+  B
+}
+
+enum RatingScope {
+  OVERALL
+  ONE_VS_ONE
+  TWO_VS_TWO
+}
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String?
+  role         UserRole       @default(PLAYER)
+  profile      PlayerProfile?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  createdMatches Match[]   @relation("CreatedMatches")
+  auditLogs      AuditLog[] @relation("AuditActor")
+}
+
+model PlayerProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  displayName String   @unique
+  avatarUrl   String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  participations  MatchParticipant[]
+  ratingSnapshots RatingSnapshot[]
+
+  @@index([isActive])
+}
+
+model Season {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  startsAt  DateTime
+  endsAt    DateTime?
+  isActive  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  matches         Match[]
+  ratingSnapshots RatingSnapshot[]
+
+  @@index([isActive])
+  @@index([startsAt, endsAt])
+}
+
+model Match {
+  id              String      @id @default(cuid())
+  mode            MatchMode
+  status          MatchStatus @default(COMPLETED)
+  playedAt        DateTime    @default(now())
+  createdByUserId String
+  seasonId        String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  createdBy User        @relation("CreatedMatches", fields: [createdByUserId], references: [id])
+  season    Season?     @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  teams     MatchTeam[]
+
+  @@index([playedAt])
+  @@index([mode])
+  @@index([status])
+  @@index([seasonId])
+}
+
+model MatchTeam {
+  id        String   @id @default(cuid())
+  matchId   String
+  side      TeamSide
+  score     Int
+  isWinner  Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  match        Match              @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  participants MatchParticipant[]
+
+  @@unique([matchId, side])
+  @@index([isWinner])
+}
+
+model MatchParticipant {
+  id          String   @id @default(cuid())
+  matchTeamId String
+  playerId    String
+  createdAt   DateTime @default(now())
+
+  matchTeam MatchTeam     @relation(fields: [matchTeamId], references: [id], onDelete: Cascade)
+  player    PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@unique([matchTeamId, playerId])
+  @@index([playerId])
+}
+
+model RatingSnapshot {
+  id              String      @id @default(cuid())
+  playerId        String
+  seasonId        String?
+  scope           RatingScope @default(OVERALL)
+  gamesPlayed     Int
+  wins            Int
+  losses          Int
+  pointsFor       Int
+  pointsAgainst   Int
+  pointDifference Int
+  winRate         Decimal     @db.Decimal(5, 4)
+  isQualified     Boolean
+  calculatedAt    DateTime    @default(now())
+
+  player PlayerProfile @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  season Season?       @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@index([scope, isQualified, winRate])
+  @@index([playerId, scope])
+  @@index([seasonId, scope])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorUserId String?
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
