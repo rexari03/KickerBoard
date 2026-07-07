@@ -74,6 +74,7 @@ export function PlayersPanel() {
     try {
       const response = await fetch(`${apiUrl}/players`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json"
         },
@@ -105,16 +106,23 @@ export function PlayersPanel() {
   }
 
   return (
-    <section className="players-layout" aria-label="Spielerverwaltung">
-      <form className="panel form-panel" onSubmit={handleSubmit}>
-        <div className="section-heading">
-          <p className="eyebrow">Spieler</p>
-          <h2>Neuen Spieler anlegen</h2>
+    <section
+      className="grid items-start gap-6 md:grid-cols-[minmax(280px,380px)_1fr]"
+      aria-label="Spielerverwaltung"
+    >
+      <form
+        className="grid gap-[18px] rounded-lg border border-[#d5ddd1] bg-white p-6"
+        onSubmit={handleSubmit}
+      >
+        <div className="grid gap-1.5">
+          <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">Spieler</p>
+          <h2 className="m-0 text-xl font-bold">Neuen Spieler anlegen</h2>
         </div>
 
-        <label className="field">
+        <label className="grid gap-2 font-bold">
           <span>Name</span>
           <input
+            className="w-full rounded-lg border border-[#ccd7c7] bg-[#fbfcfa] px-3.5 py-3 text-[#172018] outline-[#c8ead8] focus:border-[#2f6f4e] focus:outline-3"
             required
             minLength={2}
             name="displayName"
@@ -129,9 +137,10 @@ export function PlayersPanel() {
           />
         </label>
 
-        <label className="field">
+        <label className="grid gap-2 font-bold">
           <span>E-Mail</span>
           <input
+            className="w-full rounded-lg border border-[#ccd7c7] bg-[#fbfcfa] px-3.5 py-3 text-[#172018] outline-[#c8ead8] focus:border-[#2f6f4e] focus:outline-3"
             required
             name="email"
             type="email"
@@ -146,34 +155,48 @@ export function PlayersPanel() {
           />
         </label>
 
-        <button className="primary-button" disabled={isSubmitting} type="submit">
+        <button
+          className="min-h-11 cursor-pointer rounded-lg bg-[#265c42] px-4 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65"
+          disabled={isSubmitting}
+          type="submit"
+        >
           {isSubmitting ? "Speichert..." : "Spieler speichern"}
         </button>
 
-        {error ? <p className="error-message">{error}</p> : null}
+        {error ? <p className="m-0 font-bold text-[#9f2f24]">{error}</p> : null}
       </form>
 
-      <section className="panel list-panel">
-        <div className="section-heading">
-          <p className="eyebrow">Roster</p>
-          <h2>Aktive Spieler</h2>
+      <section className="min-h-[272px] rounded-lg border border-[#d5ddd1] bg-white p-6">
+        <div className="grid gap-1.5">
+          <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">Roster</p>
+          <h2 className="m-0 text-xl font-bold">Aktive Spieler</h2>
         </div>
 
-        {isLoading ? <p className="muted">Spieler werden geladen...</p> : null}
-
-        {!isLoading && players.length === 0 ? (
-          <p className="muted">Noch keine Spieler angelegt.</p>
+        {isLoading ? (
+          <p className="m-0 mt-4 text-[#667064]">Spieler werden geladen...</p>
         ) : null}
 
-        <ul className="player-list">
+        {!isLoading && players.length === 0 ? (
+          <p className="m-0 mt-4 text-[#667064]">Noch keine Spieler angelegt.</p>
+        ) : null}
+
+        <ul className="mt-4 grid list-none gap-2.5 p-0">
           {players.map((player) => (
-            <li className="player-row" key={player.id}>
-              <span className="player-avatar" aria-hidden="true">
+            <li
+              className="grid grid-cols-[44px_1fr] items-center gap-3 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-3"
+              key={player.id}
+            >
+              <span
+                className="grid h-11 w-11 place-items-center rounded-full bg-[#2f6f4e] font-extrabold text-white"
+                aria-hidden="true"
+              >
                 {player.displayName.slice(0, 1).toUpperCase()}
               </span>
               <span>
-                <strong>{player.displayName}</strong>
-                <small>{player.user.email}</small>
+                <strong className="block">{player.displayName}</strong>
+                <small className="mt-0.5 block text-[#667064]">
+                  {player.user.email}
+                </small>
               </span>
             </li>
           ))}

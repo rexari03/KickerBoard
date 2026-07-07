@@ -143,11 +143,24 @@ Das MVP-Ranking wird aus abgeschlossenen Matches berechnet. Primaere Sortierung 
 Initiale Endpunkte:
 
 - `GET /health`
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /auth/me`
+- `POST /auth/logout`
 - `GET /players`
 - `POST /players`
 - `GET /matches`
 - `POST /matches`
 - `GET /rankings`
+
+Die Authentifizierung nutzt serverseitige Sessions. Das Session-Token liegt im Browser als `HttpOnly`-Cookie, in der Datenbank wird nur der Hash des Tokens gespeichert.
+
+Nach Aenderungen am Auth-Schema:
+
+```bash
+cd apps/api
+npx prisma migrate dev --name add_auth_sessions
+```
 
 Beispiel fuer einen Spieler:
 

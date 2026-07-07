@@ -1,7 +1,9 @@
+import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import Fastify from "fastify";
 import { APP_NAME } from "@kicker-board/shared";
 import { prisma } from "./prisma.js";
+import { registerAuthRoutes } from "./routes/auth.js";
 import { registerMatchRoutes } from "./routes/matches.js";
 import { registerPlayerRoutes } from "./routes/players.js";
 import { registerRankingRoutes } from "./routes/rankings.js";
@@ -10,8 +12,13 @@ const server = Fastify({
   logger: true
 });
 
+const frontendOrigin = process.env.FRONTEND_ORIGIN ?? "http://localhost:3000";
+
+await server.register(cookie);
+
 await server.register(cors, {
-  origin: true
+  origin: frontendOrigin,
+  credentials: true
 });
 
 server.get("/health", async () => {
@@ -21,6 +28,7 @@ server.get("/health", async () => {
   };
 });
 
+await server.register(registerAuthRoutes);
 await server.register(registerPlayerRoutes);
 await server.register(registerMatchRoutes);
 await server.register(registerRankingRoutes);
