@@ -30,7 +30,11 @@ const initialState: MatchFormState = {
   teamB: [""]
 };
 
-export function MatchForm() {
+type MatchFormProps = {
+  onMatchSaved?: () => void;
+};
+
+export function MatchForm({ onMatchSaved }: MatchFormProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [form, setForm] = useState<MatchFormState>(initialState);
   const [isLoadingPlayers, setIsLoadingPlayers] = useState(true);
@@ -127,6 +131,7 @@ export function MatchForm() {
         teamB: emptyTeam(current.mode)
       }));
       setMessage("Match gespeichert.");
+      onMatchSaved?.();
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -171,7 +176,7 @@ export function MatchForm() {
             <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">Match</p>
             <h2 className="m-0 text-2xl font-extrabold">Ergebnis erfassen</h2>
             <p className="m-0 max-w-2xl text-sm leading-6 text-[#667064]">
-              Waehle Modus, Teams und Punkte. Der Gewinner wird automatisch aus
+              Wähle Modus, Teams und Punkte. Der Gewinner wird automatisch aus
               dem Ergebnis berechnet.
             </p>
           </div>
@@ -240,7 +245,7 @@ export function MatchForm() {
               <p className="m-0 text-sm text-[#667064]">Spieler werden geladen...</p>
             ) : (
               <p className="m-0 text-sm text-[#667064]">
-                {players.length} aktive Spieler verfuegbar
+                {players.length} aktive Spieler verfügbar
               </p>
             )}
             {message ? <p className="m-0 mt-1 font-bold text-[#2f6f4e]">{message}</p> : null}
@@ -309,7 +314,7 @@ function TeamCard({
               value={playerId}
               onChange={(event) => onPlayerChange(side, index, event.target.value)}
             >
-              <option value="">Spieler waehlen</option>
+              <option value="">Spieler wählen</option>
               {players.map((player) => {
                 const isSelectedElsewhere =
                   selectedPlayerIds.includes(player.id) && player.id !== playerId;
@@ -343,7 +348,7 @@ function validateForm(form: MatchFormState, playersPerTeam: number) {
     scoreA < 0 ||
     scoreB < 0
   ) {
-    return "Punkte muessen ganze Zahlen ab 0 sein.";
+    return "Punkte müssen ganze Zahlen ab 0 sein.";
   }
 
   if (scoreA === scoreB) {
@@ -351,11 +356,11 @@ function validateForm(form: MatchFormState, playersPerTeam: number) {
   }
 
   if (form.teamA.length !== playersPerTeam || form.teamB.length !== playersPerTeam) {
-    return "Die Teamgroesse passt nicht zum Spielmodus.";
+    return "Die Teamgröße passt nicht zum Spielmodus.";
   }
 
   if (playerIds.some((playerId) => !playerId)) {
-    return "Bitte alle Spieler auswaehlen.";
+    return "Bitte alle Spieler auswählen.";
   }
 
   if (new Set(playerIds).size !== playerIds.length) {
