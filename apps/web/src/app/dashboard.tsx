@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AuthPanel, type AuthUser } from "./auth-panel";
+import { MatchForm } from "./match-form";
 import { PlayersPanel } from "./players-panel";
 
 export function Dashboard() {
@@ -11,7 +12,10 @@ export function Dashboard() {
     <>
       <AuthPanel onAuthChange={setUser} />
       {user ? (
-        <PlayersPanel />
+        <>
+          <MatchForm />
+          <PlayersPanel />
+        </>
       ) : (
         <section className="rounded-lg border border-[#d5ddd1] bg-white p-6">
           <p className="m-0 text-[#667064]">
