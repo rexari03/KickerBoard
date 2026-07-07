@@ -3,7 +3,7 @@
 import { APP_NAME } from "@kicker-board/shared";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import type { AuthUser } from "./auth-panel";
+import { authChangedEventName, type AuthUser } from "./auth-panel";
 
 export function AppHeader() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -15,6 +15,21 @@ export function AppHeader() {
 
   useEffect(() => {
     void loadCurrentUser();
+
+    const handleAuthChange = (event: Event) => {
+      setUser((event as CustomEvent<AuthUser | null>).detail);
+    };
+    const handleFocus = () => {
+      void loadCurrentUser();
+    };
+
+    window.addEventListener(authChangedEventName, handleAuthChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener(authChangedEventName, handleAuthChange);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   async function loadCurrentUser() {
@@ -37,6 +52,9 @@ export function AppHeader() {
     });
 
     setUser(null);
+    window.dispatchEvent(
+      new CustomEvent<AuthUser | null>(authChangedEventName, { detail: null })
+    );
     window.location.href = "/";
   }
 

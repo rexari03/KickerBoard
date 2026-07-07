@@ -14,6 +14,8 @@ export type AuthUser = {
   } | null;
 };
 
+export const authChangedEventName = "kicker-board-auth-change";
+
 type AuthMode = "login" | "register";
 
 type AuthPanelProps = {
@@ -84,6 +86,9 @@ export function AuthPanel({ onAuthChange }: AuthPanelProps) {
       const nextUser = (await response.json()) as AuthUser;
       setUser(nextUser);
       onAuthChange(nextUser);
+      window.dispatchEvent(
+        new CustomEvent<AuthUser>(authChangedEventName, { detail: nextUser })
+      );
       setEmail("");
       setPassword("");
       setDisplayName("");
@@ -106,6 +111,9 @@ export function AuthPanel({ onAuthChange }: AuthPanelProps) {
 
     setUser(null);
     onAuthChange(null);
+    window.dispatchEvent(
+      new CustomEvent<AuthUser | null>(authChangedEventName, { detail: null })
+    );
   }
 
   if (user) {
