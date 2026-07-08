@@ -6,6 +6,7 @@ import type { AuthUser } from "./auth-panel";
 import { MatchForm } from "./match-form";
 import { MatchList } from "./match-list";
 import { RankingBoard } from "./ranking-board";
+import { Avatar } from "./avatar";
 import type { TournamentDetail } from "./tournament-dashboard";
 
 type TournamentDetailPageProps = {
@@ -154,9 +155,10 @@ export function TournamentDetailPage({ tournamentId }: TournamentDetailPageProps
                 className="grid min-w-0 grid-cols-[40px_minmax(0,1fr)] items-center gap-3 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-3"
                 key={participant.id}
               >
-                <span className="grid h-10 w-10 place-items-center rounded-full bg-[#2f6f4e] font-extrabold text-white">
-                  {participant.user.displayName.slice(0, 1).toUpperCase()}
-                </span>
+                <Avatar
+                  avatarUrl={participant.user.avatarUrl}
+                  displayName={participant.user.displayName}
+                />
                 <span className="min-w-0">
                   <strong className="block truncate">
                     {participant.user.displayName}

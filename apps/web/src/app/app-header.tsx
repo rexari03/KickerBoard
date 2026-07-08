@@ -4,6 +4,7 @@ import { APP_NAME } from "@kicker-board/shared";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { authChangedEventName, type AuthUser } from "./auth-panel";
+import { Avatar } from "./avatar";
 
 export function AppHeader() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -135,8 +136,13 @@ export function AppHeader() {
               >
                 Einstellungen
               </Link>
-              <span className="max-w-full truncate rounded-full bg-[#eef3eb] px-3 py-2 text-sm font-bold text-[#2f6f4e] md:max-w-52 md:py-1">
-                {user.displayName}
+              <span className="flex max-w-full items-center gap-2 rounded-full bg-[#eef3eb] px-2 py-1 text-sm font-bold text-[#2f6f4e] md:max-w-56">
+                <Avatar
+                  avatarUrl={user.avatarUrl}
+                  displayName={user.displayName}
+                  size="sm"
+                />
+                <span className="min-w-0 truncate">{user.displayName}</span>
               </span>
               <button
                 className="rounded-lg border border-[#ccd7c7] bg-white px-3 py-2.5 text-left text-sm font-bold text-[#172018] md:py-2"

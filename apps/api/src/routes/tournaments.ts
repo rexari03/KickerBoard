@@ -35,7 +35,8 @@ export async function registerTournamentRoutes(server: FastifyInstance) {
         owner: {
           select: {
             id: true,
-            displayName: true
+            displayName: true,
+            avatarUrl: true
           }
         },
         participants: {
@@ -146,11 +147,12 @@ export async function registerTournamentRoutes(server: FastifyInstance) {
           participants: {
             include: {
               user: {
-                select: {
-                  id: true,
-                  displayName: true,
-                  email: true
-                }
+              select: {
+                id: true,
+                displayName: true,
+                avatarUrl: true,
+                email: true
+              }
               }
             }
           },
@@ -245,6 +247,7 @@ export async function registerTournamentRoutes(server: FastifyInstance) {
             select: {
               id: true,
               displayName: true,
+              avatarUrl: true,
               email: true
             }
           }

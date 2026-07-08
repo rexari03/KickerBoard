@@ -12,6 +12,7 @@ type MatchStatus =
 type MatchListUser = {
   id: string;
   displayName: string;
+  avatarUrl: string | null;
 };
 
 type MatchParticipant = {

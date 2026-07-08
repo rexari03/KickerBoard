@@ -34,19 +34,22 @@ const matchInclude = {
   createdBy: {
     select: {
       id: true,
-      displayName: true
+      displayName: true,
+      avatarUrl: true
     }
   },
   confirmedBy: {
     select: {
       id: true,
-      displayName: true
+      displayName: true,
+      avatarUrl: true
     }
   },
   counterProposedBy: {
     select: {
       id: true,
-      displayName: true
+      displayName: true,
+      avatarUrl: true
     }
   },
   teams: {
@@ -61,7 +64,8 @@ const matchInclude = {
               user: {
                 select: {
                   id: true,
-                  displayName: true
+                  displayName: true,
+                  avatarUrl: true
                 }
               }
             }

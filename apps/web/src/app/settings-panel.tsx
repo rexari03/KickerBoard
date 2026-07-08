@@ -1,11 +1,13 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { Avatar } from "./avatar";
 import type { AuthUser } from "./auth-panel";
 
 export function SettingsPanel() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [displayName, setDisplayName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordConfirmation, setNewPasswordConfirmation] = useState("");
@@ -42,6 +44,7 @@ export function SettingsPanel() {
       const nextUser = (await response.json()) as AuthUser;
       setUser(nextUser);
       setDisplayName(nextUser.displayName);
+      setAvatarUrl(nextUser.avatarUrl ?? "");
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -60,6 +63,19 @@ export function SettingsPanel() {
     setMessage(null);
 
     try {
+      const normalizedAvatarUrl = normalizeAvatarUrlInput(avatarUrl);
+
+      if (normalizedAvatarUrl) {
+        const isValidAvatarImage = await canLoadImage(normalizedAvatarUrl);
+
+        if (!isValidAvatarImage) {
+          setAvatarUrl(normalizedAvatarUrl);
+          throw new Error(
+            "Der Avatar-Link muss direkt auf eine Bilddatei zeigen. Alternativ kannst du das Bild als Datei hochladen."
+          );
+        }
+      }
+
       const response = await fetch(`${apiUrl}/auth/me`, {
         method: "PATCH",
         credentials: "include",
@@ -67,7 +83,8 @@ export function SettingsPanel() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          displayName
+          displayName,
+          avatarUrl: normalizedAvatarUrl
         })
       });
 
@@ -78,6 +95,7 @@ export function SettingsPanel() {
       const nextUser = (await response.json()) as AuthUser;
       setUser(nextUser);
       setDisplayName(nextUser.displayName);
+      setAvatarUrl(nextUser.avatarUrl ?? "");
       setMessage("Account gespeichert.");
     } catch (saveError) {
       setError(
@@ -88,6 +106,34 @@ export function SettingsPanel() {
     } finally {
       setIsSaving(false);
     }
+  }
+
+  function handleAvatarFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setError("Bitte eine Bilddatei auswählen.");
+      return;
+    }
+
+    if (file.size > 500_000) {
+      setError("Das Avatar-Bild darf maximal 500 KB groß sein.");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setAvatarUrl(reader.result);
+        setError(null);
+      }
+    };
+    reader.readAsDataURL(file);
   }
 
   async function handlePasswordSubmit(event: FormEvent<HTMLFormElement>) {
@@ -163,6 +209,22 @@ export function SettingsPanel() {
           </h2>
         </div>
 
+        <div className="flex items-center gap-4 rounded-lg border border-[#e2e8df] bg-[#fbfcfa] p-3">
+          <Avatar
+            avatarUrl={avatarUrl || null}
+            displayName={displayName || user?.displayName || ""}
+            size="lg"
+          />
+          <div className="min-w-0">
+            <strong className="block truncate">
+              {displayName || user?.displayName}
+            </strong>
+            <small className="block truncate text-[#667064]">
+              {avatarUrl ? "Avatar-Bild aktiv" : "Initialen werden angezeigt"}
+            </small>
+          </div>
+        </div>
+
         <label className="grid gap-2 font-bold">
           <span>Anzeigename</span>
           <input
@@ -173,6 +235,43 @@ export function SettingsPanel() {
             onChange={(event) => setDisplayName(event.target.value)}
           />
         </label>
+
+        <label className="grid gap-2 font-bold">
+          <span>Avatar-Bild</span>
+          <input
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            className="w-full rounded-lg border border-[#ccd7c7] bg-[#fbfcfa] px-3.5 py-3 text-[#172018] outline-[#c8ead8] file:mr-3 file:rounded-md file:border-0 file:bg-[#265c42] file:px-3 file:py-2 file:font-bold file:text-white focus:border-[#2f6f4e] focus:outline-3"
+            type="file"
+            onChange={handleAvatarFileChange}
+          />
+        </label>
+
+        <label className="grid gap-2 font-bold">
+          <span>Avatar-Bild URL</span>
+          <input
+            className="w-full rounded-lg border border-[#ccd7c7] bg-[#fbfcfa] px-3.5 py-3 text-[#172018] outline-[#c8ead8] focus:border-[#2f6f4e] focus:outline-3"
+            inputMode="url"
+            type="url"
+            value={avatarUrl.startsWith("data:") ? "" : avatarUrl}
+            onChange={(event) => setAvatarUrl(event.target.value)}
+            onBlur={() => setAvatarUrl((current) => normalizeAvatarUrlInput(current))}
+            placeholder={
+              avatarUrl.startsWith("data:")
+                ? "Lokales Bild ausgewählt"
+                : "https://example.com/avatar.jpg"
+            }
+          />
+        </label>
+
+        {avatarUrl ? (
+          <button
+            className="min-h-11 w-full cursor-pointer rounded-lg border border-[#ccd7c7] bg-[#fbfcfa] px-5 py-3 font-extrabold text-[#172018] sm:w-fit"
+            type="button"
+            onClick={() => setAvatarUrl("")}
+          >
+            Avatar entfernen
+          </button>
+        ) : null}
 
         <button
           className="min-h-11 w-full cursor-pointer rounded-lg bg-[#265c42] px-5 py-3 font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-65 sm:w-fit"
@@ -256,4 +355,46 @@ export function SettingsPanel() {
       </form>
     </div>
   );
+}
+
+function normalizeAvatarUrlInput(value: string) {
+  const trimmedValue = value.trim();
+
+  if (!trimmedValue) {
+    return "";
+  }
+
+  if (trimmedValue.startsWith("data:image/")) {
+    return trimmedValue;
+  }
+
+  try {
+    const url = new URL(trimmedValue);
+    const forwardedUrl = url.searchParams.get("url");
+
+    if (url.hostname.endsWith("google.com") && forwardedUrl) {
+      return forwardedUrl;
+    }
+
+    return url.toString();
+  } catch {
+    return trimmedValue;
+  }
+}
+
+function canLoadImage(src: string) {
+  return new Promise<boolean>((resolve) => {
+    const image = new Image();
+    const timeout = window.setTimeout(() => resolve(false), 5000);
+
+    image.onload = () => {
+      window.clearTimeout(timeout);
+      resolve(true);
+    };
+    image.onerror = () => {
+      window.clearTimeout(timeout);
+      resolve(false);
+    };
+    image.src = src;
+  });
 }

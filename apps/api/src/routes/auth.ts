@@ -13,10 +13,12 @@ type AuthBody = {
   email?: unknown;
   password?: unknown;
   displayName?: unknown;
+  avatarUrl?: unknown;
 };
 
 type UpdateMeBody = {
   displayName?: unknown;
+  avatarUrl?: unknown;
 };
 
 type UpdatePasswordBody = {
@@ -29,6 +31,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
     const email = normalizeEmail(request.body.email);
     const password = normalizePassword(request.body.password);
     const displayName = normalizeString(request.body.displayName);
+    const avatarUrl = normalizeOptionalAvatarUrl(request.body.avatarUrl);
 
     if (!email || !password || !displayName) {
       return reply.code(400).send({
@@ -43,6 +46,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         data: {
           email,
           displayName,
+          avatarUrl,
           passwordHash
         }
       });
@@ -116,6 +120,7 @@ export async function registerAuthRoutes(server: FastifyInstance) {
     }
 
     const displayName = normalizeString(request.body.displayName);
+    const avatarUrl = normalizeOptionalAvatarUrl(request.body.avatarUrl);
 
     if (!displayName) {
       return reply.code(400).send({
@@ -128,7 +133,8 @@ export async function registerAuthRoutes(server: FastifyInstance) {
         id: session.user.id
       },
       data: {
-        displayName
+        displayName,
+        avatarUrl
       }
     });
 
@@ -307,17 +313,19 @@ function toAuthUser(user: {
   id: string;
   email: string;
   displayName: string;
+  avatarUrl: string | null;
   role: "USER" | "ADMIN";
 }) {
   return {
     id: user.id,
     email: user.email,
     displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
     role: user.role,
     profile: {
       id: user.id,
       displayName: user.displayName,
-      avatarUrl: null
+      avatarUrl: user.avatarUrl
     }
   };
 }
@@ -342,4 +350,29 @@ function normalizeString(value: unknown) {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeOptionalAvatarUrl(value: unknown) {
+  if (value == null || value === "") {
+    return null;
+  }
+
+  const rawValue = normalizeString(value);
+
+  if (!rawValue || rawValue.length > 750_000) {
+    return null;
+  }
+
+  if (
+    /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(rawValue)
+  ) {
+    return rawValue;
+  }
+
+  try {
+    const url = new URL(rawValue);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }

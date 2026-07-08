@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Avatar } from "./avatar";
 
 type RankingMode = "OVERALL" | "ONE_VS_ONE" | "TWO_VS_TWO";
 
@@ -8,6 +9,7 @@ type RankingRow = {
   participantId: string;
   userId: string;
   displayName: string;
+  avatarUrl: string | null;
   gamesPlayed: number;
   wins: number;
   losses: number;
@@ -166,9 +168,7 @@ export function RankingBoard({ refreshKey, tournamentId }: RankingBoardProps) {
                 key={row.participantId}
               >
                 <div className="grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#2f6f4e] font-extrabold text-white">
-                    {row.displayName.slice(0, 1).toUpperCase()}
-                  </span>
+                  <Avatar avatarUrl={row.avatarUrl} displayName={row.displayName} />
                   <span className="min-w-0">
                     <strong className="block truncate">{row.displayName}</strong>
                     <small className="block text-[#667064]">
@@ -221,9 +221,10 @@ export function RankingBoard({ refreshKey, tournamentId }: RankingBoardProps) {
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-3">
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#2f6f4e] font-extrabold text-white">
-                          {row.displayName.slice(0, 1).toUpperCase()}
-                        </span>
+                        <Avatar
+                          avatarUrl={row.avatarUrl}
+                          displayName={row.displayName}
+                        />
                         <span>
                           <strong className="block">{row.displayName}</strong>
                           <small className="block text-[#667064]">

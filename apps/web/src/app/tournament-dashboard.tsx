@@ -11,6 +11,7 @@ type TournamentSummary = {
   owner: {
     id: string;
     displayName: string;
+    avatarUrl: string | null;
   };
   participantCount: number;
   matchCount: number;
@@ -27,6 +28,7 @@ export type TournamentParticipant = {
   user: {
     id: string;
     displayName: string;
+    avatarUrl: string | null;
     email: string;
   };
 };

@@ -1,11 +1,13 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { Avatar } from "./avatar";
 
 export type AuthUser = {
   id: string;
   email: string;
   displayName: string;
+  avatarUrl: string | null;
   role: "USER" | "ADMIN";
   profile: {
     id: string;
@@ -122,11 +124,16 @@ export function AuthPanel({ onAuthChange }: AuthPanelProps) {
         className="grid min-w-0 gap-4 rounded-lg border border-[#d5ddd1] bg-white p-4 sm:p-6"
         aria-label="Aktuelle Sitzung"
       >
-        <div className="grid gap-1.5">
-          <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">Session</p>
-          <h2 className="m-0 min-w-0 break-words text-xl font-bold">
-            {user.displayName}
-          </h2>
+        <div className="grid grid-cols-[40px_minmax(0,1fr)] items-center gap-3">
+          <Avatar avatarUrl={user.avatarUrl} displayName={user.displayName} />
+          <div className="min-w-0">
+            <p className="m-0 text-xs font-bold uppercase text-[#2f6f4e]">
+              Session
+            </p>
+            <h2 className="m-0 min-w-0 truncate text-xl font-bold">
+              {user.displayName}
+            </h2>
+          </div>
         </div>
         <p className="m-0 min-w-0 break-words text-[#667064]">{user.email}</p>
         <button

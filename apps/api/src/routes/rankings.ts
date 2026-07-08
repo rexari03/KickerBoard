@@ -16,6 +16,7 @@ type RankingRow = {
   participantId: string;
   userId: string;
   displayName: string;
+  avatarUrl: string | null;
   gamesPlayed: number;
   wins: number;
   losses: number;
@@ -72,7 +73,8 @@ export async function registerRankingRoutes(server: FastifyInstance) {
             user: {
               select: {
                 id: true,
-                displayName: true
+                displayName: true,
+                avatarUrl: true
               }
             }
           },
@@ -103,6 +105,7 @@ export async function registerRankingRoutes(server: FastifyInstance) {
           participantId: participant.id,
           userId: participant.user.id,
           displayName: participant.user.displayName,
+          avatarUrl: participant.user.avatarUrl,
           gamesPlayed: 0,
           wins: 0,
           losses: 0,
